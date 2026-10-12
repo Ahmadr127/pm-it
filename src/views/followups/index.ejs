@@ -1,0 +1,53 @@
+<%- include('../partials/top') %>
+<% const manage = can('followup.manage'); %>
+<div class="d-flex flex-wrap gap-2 align-items-center justify-content-between mb-3">
+  <div><h2 class="h5 mb-0">Tindak Lanjut & Perbaikan</h2><div class="text-muted small">Masalah dari hasil maintenance (dibuat otomatis) maupun dicatat manual. Manager IT dapat meninjau & memantau penyelesaian.</div></div>
+  <% if (manage) { %><button class="btn btn-primary" data-modal-form="#fuModal" data-action="/follow-ups" data-title="Tindak Lanjut Baru" data-values="<%= JSON.stringify({ status: 'Terbuka', priority: 'Sedang' }) %>"><i class="bi bi-plus-lg me-1"></i>Tindak lanjut manual</button><% } %>
+</div>
+<form class="filter-bar" method="get"><div class="row g-2 align-items-end">
+  <div class="col-lg-3"><label class="form-label small">Cari</label><input class="form-control" name="q" value="<%= query.q || '' %>" placeholder="Judul / kode aset"></div>
+  <div class="col-lg-2 col-6"><label class="form-label small">Status</label><select class="form-select" name="status"><option value="open" <%= st==='open'?'selected':'' %>>Belum selesai</option><option value="all" <%= st==='all'?'selected':'' %>>Semua</option><% for (const s of STATUS) { %><option <%= st===s?'selected':'' %>><%= s %></option><% } %></select></div>
+  <div class="col-lg-2 col-6"><label class="form-label small">Prioritas</label><select class="form-select" name="priority"><option value="">Semua</option><option value="Kritis,Tinggi" <%= query.priority==='Kritis,Tinggi'?'selected':'' %>>Kritis + Tinggi</option><% for (const p of PRIORITY) { %><option <%= query.priority===p?'selected':'' %>><%= p %></option><% } %></select></div>
+  <div class="col-lg-2 col-6"><label class="form-label small">PIC</label><select class="form-select" name="pic_user_id"><option value="">Semua</option><% for (const t of techs) { %><option value="<%= t.id %>" <%= String(query.pic_user_id)===String(t.id)?'selected':'' %>><%= t.full_name %></option><% } %></select></div>
+  <div class="col-lg-2 col-6"><label class="form-label small">Departemen</label><select class="form-select" name="department_id"><option value="">Semua</option><% for (const d of departments) { %><option value="<%= d.id %>" <%= String(query.department_id)===String(d.id)?'selected':'' %>><%= d.name %></option><% } %></select></div>
+  <div class="col-lg-1 col-6"><div class="form-check mb-2"><input class="form-check-input" type="checkbox" name="overdue" value="1" id="ovd" <%= query.overdue==='1'?'checked':'' %>><label class="form-check-label small" for="ovd">Lewat target</label></div></div>
+  <div class="col-12 d-flex gap-2"><button class="btn btn-navy"><i class="bi bi-funnel me-1"></i>Terapkan</button><a href="/follow-ups" class="btn btn-light">Reset</a></div>
+</div></form>
+<div class="card table-card"><div class="table-responsive">
+  <% if (!rows.length) { %><%- include('../partials/empty', { icon: 'bi-check2-all', heading: 'Tidak ada tindak lanjut', text: 'Tidak ada tindak lanjut pada filter ini.' }) %><% } else { %>
+  <table class="table table-hover"><thead><tr><th>Prioritas</th><th>Tindak lanjut</th><th>Aset</th><th>PIC</th><th>Target</th><th>Status</th><th>Peninjauan</th><th></th></tr></thead><tbody>
+  <% for (const f of rows) { const late = f.target_date && f.target_date < h.today() && !['Selesai','Dibatalkan'].includes(f.status); %><tr>
+    <td><%- h.priorityBadge(f.priority) %></td>
+    <td style="max-width:420px"><div class="fw-semibold"><%= f.title %></div><% if (f.description) { %><details class="small text-muted"><summary>Detail</summary><div style="white-space:pre-line"><%= f.description %></div></details><% } %>
+      <div class="small text-muted"><%= f.is_auto_generated ? 'Otomatis' : 'Manual' %><% if (f.maintenance_no) { %> · <a href="/maintenance/<%= f.maintenance_record_id %>" class="mono"><%= f.maintenance_no %></a><% } %><% if (f.resolution) { %> · Hasil: <%= f.resolution %><% } %></div></td>
+    <td><a href="/assets/<%= f.asset_id %>" class="code-chip"><%= f.asset_code %></a><div class="small text-muted"><%= f.department_name || '' %></div></td>
+    <td class="small"><%= f.pic || f.pic_name || '-' %></td>
+    <td class="small text-nowrap <%= late ? 'text-danger fw-semibold' : '' %>"><%= h.fmtDate(f.target_date) %><%= late ? ' (lewat)' : '' %></td>
+    <td><%- h.followBadge(f.status) %></td>
+    <td class="small text-muted"><%= f.reviewer ? `${f.reviewer}, ${h.fmtDate(f.reviewed_at)}` : '-' %></td>
+    <td class="text-end text-nowrap"><% if (manage) { %>
+      <button class="btn btn-light btn-sm" data-modal-form="#fuModal" data-action="/follow-ups/<%= f.id %>" data-title="Perbarui Tindak Lanjut" data-values="<%= JSON.stringify({ title: f.title, description: f.description, priority: f.priority, status: f.status, pic_user_id: f.pic_user_id, target_date: f.target_date, resolution: f.resolution }) %>"><i class="bi bi-pencil"></i></button>
+      <button class="btn btn-light btn-sm" title="Catat perbaikan" data-modal-form="#repairModal" data-values="<%= JSON.stringify({ asset_id: f.asset_id, maintenance_record_id: f.maintenance_record_id, follow_up_id: f.id, repair_date: h.today() }) %>"><i class="bi bi-wrench"></i></button>
+    <% } %></td>
+  </tr><% } %></tbody></table><% } %>
+</div><%- include('../partials/pager') %></div>
+
+<% if (manage) { %>
+<div class="modal fade" id="fuModal" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-dialog-centered modal-lg"><div class="modal-content">
+  <form method="post" data-ajax data-reload novalidate><input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div class="modal-header"><h5 class="modal-title">Tindak Lanjut</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body row g-3"><div class="alert alert-danger d-none" data-form-alert></div>
+      <div class="col-12" data-only-new><label class="form-label">Kode aset<span class="req">*</span></label><select name="asset_id" data-asset-search></select><div class="form-text">Hanya untuk tindak lanjut baru.</div></div>
+      <div class="col-12"><label class="form-label">Judul<span class="req">*</span></label><input class="form-control" name="title" maxlength="200" required></div>
+      <div class="col-12"><label class="form-label">Deskripsi</label><textarea class="form-control" name="description" rows="4"></textarea></div>
+      <div class="col-md-4"><label class="form-label">Prioritas</label><select class="form-select" name="priority"><% for (const p of PRIORITY) { %><option><%= p %></option><% } %></select></div>
+      <div class="col-md-4"><label class="form-label">Status</label><select class="form-select" name="status"><% for (const s of STATUS) { %><option><%= s %></option><% } %></select></div>
+      <div class="col-md-4"><label class="form-label">Target</label><input type="date" class="form-control" name="target_date"></div>
+      <div class="col-md-6"><label class="form-label">PIC</label><select class="form-select" name="pic_user_id"><option value="">—</option><% for (const t of techs) { %><option value="<%= t.id %>"><%= t.full_name %></option><% } %></select></div>
+      <div class="col-12"><label class="form-label">Hasil penyelesaian</label><textarea class="form-control" name="resolution" rows="2" placeholder="Wajib diisi bila status Selesai"></textarea></div>
+    </div>
+    <div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Batal</button><button class="btn btn-primary">Simpan</button></div>
+  </form></div></div></div>
+<%- include('../partials/repair-modal', { techs }) %>
+<% } %>
+<%- include('../partials/bottom') %>

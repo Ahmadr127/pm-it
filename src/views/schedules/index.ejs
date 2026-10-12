@@ -1,0 +1,96 @@
+<%- include('../partials/top') %>
+<% const manage = can('schedule.manage'); %>
+<div class="row g-3 mb-3">
+  <% for (const [k, label, icon, tone, n] of [['mendatang','Jadwal mendatang','bi-calendar2-week','tone-purple',counts.mendatang],['jatuh-tempo',`Jatuh tempo ≤ ${dueDays} hari`,'bi-hourglass-split','tone-warn',counts.jatuh_tempo],['terlambat','Maintenance terlambat','bi-alarm','tone-crit',counts.terlambat]]) { %>
+  <div class="col-md-4 col-4"><a class="stat-link" href="/schedules?tab=<%= k %>"><div class="card stat-card <%= tone %> <%= tab === k ? 'border-primary' : '' %>"><div class="stat-icon"><i class="bi <%= icon %>"></i></div><div><div class="stat-value"><%= n || 0 %></div><div class="stat-label"><%= label %></div></div></div></a></div>
+  <% } %>
+</div>
+<% if (noSchedule && manage) { %>
+<div class="alert alert-info d-flex flex-wrap align-items-center gap-2"><i class="bi bi-info-circle"></i><span class="flex-grow-1"><strong><%= noSchedule %></strong> aset aktif belum memiliki jadwal maintenance terbuka.</span>
+  <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#genModal"><i class="bi bi-magic me-1"></i>Buat jadwal otomatis</button></div>
+<% } %>
+
+<div class="card table-card">
+  <ul class="nav nav-tabs-soft px-3 pt-2">
+    <% for (const [k, l] of [['mendatang','Mendatang'],['jatuh-tempo','Segera jatuh tempo'],['terlambat','Terlambat'],['selesai','Selesai'],['semua','Semua']]) { %><li class="nav-item"><a class="nav-link <%= tab===k?'active':'' %>" href="/schedules?tab=<%= k %>"><%= l %></a></li><% } %>
+  </ul>
+  <form class="table-toolbar" method="get"><input type="hidden" name="tab" value="<%= tab %>">
+    <input class="form-control" style="max-width:220px" name="q" value="<%= query.q || '' %>" placeholder="Cari aset / pengguna">
+    <input type="date" class="form-control" style="max-width:160px" name="from" value="<%= query.from || '' %>" title="Dari tanggal">
+    <input type="date" class="form-control" style="max-width:160px" name="to" value="<%= query.to || '' %>" title="Sampai tanggal">
+    <select class="form-select" style="max-width:190px" name="technician_user_id"><option value="">Semua teknisi</option><option value="none" <%= query.technician_user_id==='none'?'selected':'' %>>Belum ditugaskan</option><% for (const t of techs) { %><option value="<%= t.id %>" <%= String(query.technician_user_id)===String(t.id)?'selected':'' %>><%= t.full_name %></option><% } %></select>
+    <select class="form-select" style="max-width:180px" name="department_id"><option value="">Semua departemen</option><% for (const d of departments) { %><option value="<%= d.id %>" <%= String(query.department_id)===String(d.id)?'selected':'' %>><%= d.name %></option><% } %></select>
+    <select class="form-select" style="max-width:200px" name="work_unit_id"><option value="">Semua unit</option><% for (const u of units) { %><option value="<%= u.id %>" <%= String(query.work_unit_id)===String(u.id)?'selected':'' %>><%= u.department_name %> › <%= u.name %></option><% } %></select>
+    <select class="form-select" style="max-width:170px" name="health"><option value="">Semua kondisi</option><% for (const [k, v] of Object.entries({ BAIK:'Baik', PERHATIAN:'Perlu Perhatian', KRITIS:'Kritis', BELUM_DIEVALUASI:'Belum Dievaluasi' })) { %><option value="<%= k %>" <%= query.health===k?'selected':'' %>><%= v %></option><% } %></select>
+    <button class="btn btn-navy btn-sm"><i class="bi bi-funnel"></i></button>
+    <% if (manage) { %><button type="button" class="btn btn-primary btn-sm ms-auto" data-modal-form="#schedModal" data-action="/schedules" data-title="Buat Jadwal Maintenance" data-values="<%= JSON.stringify({ scheduled_date: h.addDays(h.today(), 7) }) %>"><i class="bi bi-calendar-plus me-1"></i>Buat jadwal</button><% } %>
+  </form>
+  <form method="post" action="/schedules/bulk/assign" data-ajax data-reload id="bulkForm"><input type="hidden" name="_csrf" value="<%= csrfToken %>">
+  <div class="table-responsive">
+    <% if (!rows.length) { %><%- include('../partials/empty', { icon: 'bi-calendar2-check', heading: tab === 'terlambat' ? 'Tidak ada maintenance terlambat' : 'Tidak ada jadwal', text: 'Tidak ada jadwal pada tab & filter ini.' }) %><% } else { %>
+    <table class="table table-hover"><thead><tr><% if (manage) { %><th style="width:32px"><input type="checkbox" class="form-check-input" data-check-all></th><% } %><th>Tanggal</th><th>Aset</th><th>Pengguna / Unit</th><th>Kondisi terakhir</th><th>Maintenance terakhir</th><th>Teknisi</th><th>Status</th><th></th></tr></thead><tbody>
+    <% for (const s of rows) { const d = h.diffDays(s.scheduled_date, h.today()); const late = d < 0 && ['Terjadwal','Ditunda','Dalam Proses'].includes(s.status); %><tr>
+      <% if (manage) { %><td><% if (s.status !== 'Selesai') { %><input type="checkbox" class="form-check-input" name="ids" value="<%= s.id %>"><% } %></td><% } %>
+      <td class="text-nowrap"><div class="fw-semibold <%= late ? 'text-danger' : '' %>"><%= h.fmtDate(s.scheduled_date) %></div><div class="small <%= late ? 'text-danger' : 'text-muted' %>"><%= s.status === 'Selesai' ? '' : late ? `terlambat ${-d} hari` : d === 0 ? 'hari ini' : `${d} hari lagi` %></div></td>
+      <td><a href="/assets/<%= s.asset_id %>" class="code-chip"><%= s.asset_code %></a><div class="small text-muted"><%= [h.deviceName(s.asset_code, s.hostname), s.device_type].filter(Boolean).join(' · ') %></div></td>
+      <td class="small"><%= s.employee_name || '-' %><div class="text-muted"><%= [s.department_name, s.work_unit_name].filter(Boolean).join(' › ') %></div></td>
+      <td><%- h.statusBadge(s.current_health_status) %></td><td class="small"><%= h.fmtDate(s.last_maintenance_date) %></td>
+      <td class="small"><%= s.technician || '' %><% if (!s.technician) { %><span class="text-warning">Belum ditugaskan</span><% } %></td>
+      <td><%- h.recordBadge(s.status) %><div class="small text-muted"><%= s.source === 'OTOMATIS' ? 'otomatis' : 'manual' %></div></td>
+      <td class="text-end text-nowrap">
+        <% if (s.status !== 'Selesai' && s.status !== 'Dibatalkan' && can('maintenance.create')) { %><a class="btn btn-soft btn-sm" href="/maintenance/new?asset_id=<%= s.asset_id %>&schedule_id=<%= s.id %>" title="Mulai maintenance"><i class="bi bi-play-fill"></i></a><% } %>
+        <% if (s.status === 'Selesai' && s.maintenance_record_id) { %><a class="btn btn-light btn-sm" href="/maintenance/<%= s.maintenance_record_id %>"><i class="bi bi-eye"></i></a><% } %>
+        <% if (manage && s.status !== 'Selesai') { %><button type="button" class="btn btn-light btn-sm" data-modal-form="#editModal" data-action="/schedules/<%= s.id %>" data-title="Ubah Jadwal <%= s.asset_code %>" data-values="<%= JSON.stringify({ scheduled_date: s.scheduled_date, technician_user_id: s.technician_user_id, status: s.status, interval_type: s.interval_type, notes: s.notes }) %>"><i class="bi bi-pencil"></i></button>
+          <button type="button" class="btn btn-light btn-sm text-danger" title="Hapus jadwal" aria-label="Hapus jadwal <%= s.asset_code %>" data-post-url="/schedules/<%= s.id %>/delete" data-reload data-confirm-title="Hapus jadwal?" data-confirm-text="Jadwal <%= h.fmtDate(s.scheduled_date) %> untuk <%= s.asset_code %> (<%= s.hostname || '' %>) akan dihapus. Riwayat maintenance tidak terpengaruh."><i class="bi bi-trash"></i></button><% } %>
+      </td></tr><% } %></tbody></table><% } %>
+  </div>
+  <% if (manage && rows.length) { %><div class="table-toolbar border-top border-bottom-0"><span class="small text-muted">Tugaskan jadwal terpilih ke:</span>
+    <select class="form-select form-select-sm" style="max-width:220px" name="technician_user_id"><option value="">— Kosongkan —</option><% for (const t of techs) { %><option value="<%= t.id %>"><%= t.full_name %></option><% } %></select>
+    <button class="btn btn-sm btn-navy"><i class="bi bi-person-check me-1"></i>Tugaskan</button></div><% } %>
+  </form>
+  <%- include('../partials/pager') %>
+</div>
+
+<div class="card mt-3"><div class="card-body small text-muted"><i class="bi bi-sliders me-1"></i>Kebijakan interval saat ini: <%= intervals.map(i => `${i.device_type} ${i.interval_days} hari (${i.interval_type})`).join(' · ') %>. Interval per aset dapat diatur di form aset<%= can('threshold.manage') ? '; kebijakan per jenis perangkat di menu Threshold & Interval' : '' %>. Hasil Perlu Perhatian/Kritis mempersingkat jadwal berikutnya secara otomatis.</div></div>
+
+<% if (manage) { %>
+<div class="modal fade" id="schedModal" tabindex="-1" aria-hidden="true" <%= preAsset ? 'data-autoshow' : '' %>><div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+  <form method="post" action="/schedules" data-ajax data-reload novalidate><input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div class="modal-header"><h5 class="modal-title">Buat Jadwal Maintenance</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body row g-3"><div class="alert alert-danger d-none" data-form-alert></div>
+      <div class="col-12"><label class="form-label">Kode aset<span class="req">*</span></label><select name="asset_id" data-asset-search required><% if (preAsset) { %><option value="<%= preAsset.id %>" selected><%= preAsset.asset_code %></option><% } %></select></div>
+      <div class="col-md-6"><label class="form-label">Tanggal<span class="req">*</span></label><input type="date" class="form-control" name="scheduled_date" value="<%= h.addDays(h.today(), 7) %>" required></div>
+      <div class="col-md-6"><label class="form-label">Jenis jadwal</label><select class="form-select" name="interval_type"><option value="">—</option><% for (const t of TYPES) { %><option><%= t %></option><% } %></select></div>
+      <div class="col-12"><label class="form-label">Teknisi</label><select class="form-select" name="technician_user_id"><option value="">Belum ditugaskan</option><% for (const t of techs) { %><option value="<%= t.id %>"><%= t.full_name %></option><% } %></select></div>
+      <div class="col-12"><label class="form-label">Catatan</label><input class="form-control" name="notes" maxlength="255"></div>
+    </div>
+    <div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Batal</button><button class="btn btn-primary">Simpan</button></div>
+  </form></div></div></div>
+
+<div class="modal fade" id="editModal" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+  <form method="post" data-ajax data-reload novalidate><input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div class="modal-header"><h5 class="modal-title">Ubah Jadwal</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body row g-3"><div class="alert alert-danger d-none" data-form-alert></div>
+      <div class="col-md-6"><label class="form-label">Tanggal<span class="req">*</span></label><input type="date" class="form-control" name="scheduled_date" required></div>
+      <div class="col-md-6"><label class="form-label">Status<span class="req">*</span></label><select class="form-select" name="status"><% for (const s of STATUS.filter(x => x !== 'Selesai')) { %><option><%= s %></option><% } %></select></div>
+      <div class="col-md-6"><label class="form-label">Teknisi</label><select class="form-select" name="technician_user_id"><option value="">Belum ditugaskan</option><% for (const t of techs) { %><option value="<%= t.id %>"><%= t.full_name %></option><% } %></select></div>
+      <div class="col-md-6"><label class="form-label">Jenis jadwal</label><select class="form-select" name="interval_type"><option value="">—</option><% for (const t of TYPES) { %><option><%= t %></option><% } %></select></div>
+      <div class="col-12"><label class="form-label">Catatan</label><input class="form-control" name="notes" maxlength="255"></div>
+    </div>
+    <div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Batal</button><button class="btn btn-primary">Simpan</button></div>
+  </form></div></div></div>
+
+<div class="modal fade" id="genModal" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+  <form method="post" action="/schedules/generate" data-ajax data-reload novalidate><input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div class="modal-header"><h5 class="modal-title">Buat Jadwal Otomatis</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body row g-3"><div class="alert alert-danger d-none" data-form-alert></div>
+      <p class="small text-muted mb-0">Untuk setiap aset aktif tanpa jadwal terbuka: tanggal = maintenance terakhir + interval kebijakan (dipersingkat bila kondisi Perlu Perhatian/Kritis). Aset yang belum pernah di-maintenance dijadwalkan bertahap mulai tanggal awal.</p>
+      <div class="col-md-6"><label class="form-label">Tanggal awal<span class="req">*</span></label><input type="date" class="form-control" name="start_date" value="<%= h.addDays(h.today(), 1) %>" required></div>
+      <div class="col-md-6"><label class="form-label">Maks. perangkat / hari</label><input class="form-control" name="spread_per_day" value="10" inputmode="numeric"></div>
+      <div class="col-md-6"><label class="form-label">Jenis perangkat</label><select class="form-select" name="device_type"><option value="">Semua</option><% for (const i of intervals) { %><option><%= i.device_type %></option><% } %></select></div>
+      <div class="col-md-6"><label class="form-label">Teknisi</label><select class="form-select" name="technician_user_id"><option value="">Belum ditugaskan</option><% for (const t of techs) { %><option value="<%= t.id %>"><%= t.full_name %></option><% } %></select></div>
+    </div>
+    <div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Batal</button><button class="btn btn-primary"><i class="bi bi-magic me-1"></i>Buat jadwal</button></div>
+  </form></div></div></div>
+<% } %>
+<%- include('../partials/bottom', { scripts: ['list-tools.js'] }) %>

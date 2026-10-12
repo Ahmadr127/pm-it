@@ -1,0 +1,75 @@
+<%- include('../partials/top') %>
+<div class="alert alert-warning"><i class="bi bi-info-circle me-1"></i><strong>Penting:</strong> nilai awal hanyalah contoh kebijakan, bukan standar universal. Sesuaikan dengan datasheet produsen (Tjmax CPU, suhu operasi SSD/HDD) dan model perangkat. Nilai health dari tiap produsen dihitung berbeda — sistem tidak pernah menyimpulkan aman hanya dari angka health.</div>
+
+<div class="card table-card mb-3">
+  <div class="card-header d-flex justify-content-between align-items-center"><span><i class="bi bi-thermometer-half me-1"></i>Threshold hardware</span>
+    <button class="btn btn-primary btn-sm" data-modal-form="#thrModal" data-action="/admin/thresholds" data-title="Tambah Threshold" data-values="<%= JSON.stringify({ is_active: 1 }) %>"><i class="bi bi-plus-lg me-1"></i>Tambah aturan</button></div>
+  <div class="px-3 py-2 small text-muted border-bottom">Aturan paling spesifik yang cocok dipakai: pola model &gt; merek &gt; antarmuka &gt; jenis perangkat &gt; umum. Suhu: Perhatian bila ≥ batas perhatian, Kritis bila ≥ batas kritis. Health: Perhatian bila ≤ batas perhatian, Kritis bila &lt; batas kritis.</div>
+  <div class="table-responsive"><table class="table table-hover">
+    <thead><tr><th>Parameter</th><th>Cakupan</th><th class="text-end">Perhatian</th><th class="text-end">Kritis</th><th>Referensi / catatan</th><th>Status</th><th></th></tr></thead>
+    <tbody><% for (const t of thresholds) { const unit = t.parameter.endsWith('TEMP') ? '°C' : '%'; %><tr class="<%= t.is_active ? '' : 'text-muted' %>">
+      <td class="fw-semibold"><%= PARAMS[t.parameter] %></td>
+      <td class="small"><%= [t.device_type, t.interface, t.brand, t.model_pattern ? `model ~ "${t.model_pattern}"` : null].filter(Boolean).join(' · ') || 'Umum (semua)' %></td>
+      <td class="text-end"><%= t.parameter.endsWith('TEMP') ? '≥' : '≤' %> <%= h.fmtNum(t.warning_value) %><%= unit %></td>
+      <td class="text-end"><%= t.parameter.endsWith('TEMP') ? '≥' : '<' %> <%= h.fmtNum(t.critical_value) %><%= unit %></td>
+      <td class="small text-muted" style="max-width:360px"><%= t.reference || '' %><div><%= t.notes || '' %></div><% if (t.updater) { %><div>Diubah: <%= t.updater %>, <%= h.fmtDate(t.updated_at) %></div><% } %></td>
+      <td><%- t.is_active ? h.pill('Aktif','success') : h.pill('Nonaktif','dark') %></td>
+      <td class="text-end"><button class="btn btn-light btn-sm" data-modal-form="#thrModal" data-action="/admin/thresholds/<%= t.id %>" data-title="Ubah Threshold" data-values="<%= JSON.stringify({ parameter: t.parameter, device_type: t.device_type, interface: t.interface, brand: t.brand, model_pattern: t.model_pattern, warning_value: t.warning_value, critical_value: t.critical_value, reference: t.reference, notes: t.notes, is_active: t.is_active }) %>"><i class="bi bi-pencil"></i></button></td>
+    </tr><% } %></tbody></table></div>
+</div>
+
+<div class="row g-3">
+  <div class="col-xl-6" id="interval"><div class="card table-card h-100"><div class="card-header"><i class="bi bi-calendar2-range me-1"></i>Interval maintenance per jenis perangkat</div>
+    <div class="table-responsive"><table class="table"><thead><tr><th>Jenis perangkat</th><th>Kebijakan</th><th class="text-end">Interval</th><th></th></tr></thead><tbody>
+    <% for (const i of intervals) { %><tr><td class="fw-semibold"><%= i.device_type %></td><td><%= i.interval_type %><div class="small text-muted"><%= i.notes || '' %></div></td><td class="text-end"><%= i.interval_days %> hari</td>
+      <td class="text-end"><button class="btn btn-light btn-sm" data-modal-form="#intModal" data-action="/admin/intervals/<%= i.id %>" data-title="Interval <%= i.device_type %>" data-values="<%= JSON.stringify({ interval_type: i.interval_type, interval_days: i.interval_days, notes: i.notes }) %>"><i class="bi bi-pencil"></i></button></td></tr><% } %>
+    </tbody></table></div>
+    <div class="card-body small text-muted border-top">Interval per aset (override) dapat diatur di form aset. Hasil Perlu Perhatian/Kritis mempersingkat jadwal sesuai Pengaturan Sistem.</div></div></div>
+  <div class="col-xl-6" id="checklist"><div class="card table-card h-100"><div class="card-header d-flex justify-content-between align-items-center"><span><i class="bi bi-list-check me-1"></i>Checklist perawatan fisik</span>
+    <button class="btn btn-soft btn-sm" data-modal-form="#taskModal" data-action="/admin/tasks" data-title="Tambah Item Checklist" data-values="<%= JSON.stringify({ applies_to: 'SEMUA', sort_order: tasks.length + 1, is_active: 1 }) %>"><i class="bi bi-plus-lg"></i></button></div>
+    <div class="table-responsive"><table class="table"><thead><tr><th>#</th><th>Item</th><th>Berlaku</th><th>Status</th><th></th></tr></thead><tbody>
+    <% for (const t of tasks) { %><tr class="<%= t.is_active ? '' : 'text-muted' %>"><td><%= t.sort_order %></td><td><%= t.name %><div class="small mono text-muted"><%= t.code %></div></td><td class="small"><%= { SEMUA: 'Semua', LAPTOP: 'Laptop', DESKTOP: 'Non-laptop' }[t.applies_to] %></td><td><%- t.is_active ? h.pill('Aktif','success') : h.pill('Nonaktif','dark') %></td>
+      <td class="text-end"><button class="btn btn-light btn-sm" data-modal-form="#taskModal" data-action="/admin/tasks/<%= t.id %>" data-title="Ubah Item" data-values="<%= JSON.stringify({ code: t.code, name: t.name, applies_to: t.applies_to, sort_order: t.sort_order, is_active: t.is_active }) %>"><i class="bi bi-pencil"></i></button></td></tr><% } %>
+    </tbody></table></div></div></div>
+</div>
+
+<div class="modal fade" id="thrModal" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-dialog-centered modal-lg"><div class="modal-content">
+  <form method="post" data-ajax data-reload novalidate><input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div class="modal-header"><h5 class="modal-title">Threshold</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body row g-3"><div class="alert alert-danger d-none" data-form-alert></div>
+      <div class="col-md-6"><label class="form-label">Parameter<span class="req">*</span></label><select class="form-select" name="parameter" required><% for (const [k, v] of Object.entries(PARAMS)) { %><option value="<%= k %>"><%= v %></option><% } %></select></div>
+      <div class="col-md-6"><label class="form-label">Jenis perangkat</label><select class="form-select" name="device_type"><option value="">Semua</option><% for (const t of DEVICE_TYPES) { %><option><%= t %></option><% } %></select></div>
+      <div class="col-md-4"><label class="form-label">Antarmuka (storage)</label><select class="form-select" name="interface"><option value="">Semua</option><% for (const i of ['SATA','NVMe','SAS','USB','Lainnya']) { %><option><%= i %></option><% } %></select></div>
+      <div class="col-md-4"><label class="form-label">Merek</label><input class="form-control" name="brand" maxlength="80" placeholder="mis. Samsung"></div>
+      <div class="col-md-4"><label class="form-label">Pola model</label><input class="form-control" name="model_pattern" maxlength="120" placeholder="mis. 980 PRO / i7-12700"></div>
+      <div class="col-md-6"><label class="form-label">Batas perhatian<span class="req">*</span></label><input class="form-control" name="warning_value" inputmode="decimal" required></div>
+      <div class="col-md-6"><label class="form-label">Batas kritis<span class="req">*</span></label><input class="form-control" name="critical_value" inputmode="decimal" required></div>
+      <div class="col-12"><label class="form-label">Referensi (datasheet / kebijakan)</label><input class="form-control" name="reference" maxlength="255"></div>
+      <div class="col-12"><label class="form-label">Catatan</label><input class="form-control" name="notes" maxlength="255"></div>
+      <div class="col-12"><div class="form-check form-switch"><input type="hidden" name="is_active" value="0"><input class="form-check-input" type="checkbox" name="is_active" value="1" id="thrA" checked><label class="form-check-label" for="thrA">Aktif</label></div></div>
+    </div>
+    <div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Batal</button><button class="btn btn-primary">Simpan</button></div>
+  </form></div></div></div>
+<div class="modal fade" id="intModal" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+  <form method="post" data-ajax data-reload novalidate><input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div class="modal-header"><h5 class="modal-title">Interval</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body row g-3"><div class="alert alert-danger d-none" data-form-alert></div>
+      <div class="col-md-6"><label class="form-label">Jenis kebijakan</label><select class="form-select" name="interval_type"><% for (const t of ['Mingguan','Bulanan','Triwulanan','Semesteran','Tahunan','Kustom']) { %><option><%= t %></option><% } %></select></div>
+      <div class="col-md-6"><label class="form-label">Interval (hari)<span class="req">*</span></label><input class="form-control" name="interval_days" inputmode="numeric" required><div class="form-text">Mingguan 7 · Bulanan 30 · Triwulanan 90</div></div>
+      <div class="col-12"><label class="form-label">Catatan</label><input class="form-control" name="notes" maxlength="255"></div>
+    </div>
+    <div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Batal</button><button class="btn btn-primary">Simpan</button></div>
+  </form></div></div></div>
+<div class="modal fade" id="taskModal" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+  <form method="post" data-ajax data-reload novalidate><input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div class="modal-header"><h5 class="modal-title">Item checklist</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body row g-3"><div class="alert alert-danger d-none" data-form-alert></div>
+      <div class="col-md-4"><label class="form-label">Kode<span class="req">*</span></label><input class="form-control text-uppercase" name="code" maxlength="40" required></div>
+      <div class="col-md-8"><label class="form-label">Nama item<span class="req">*</span></label><input class="form-control" name="name" maxlength="150" required></div>
+      <div class="col-md-6"><label class="form-label">Berlaku untuk</label><select class="form-select" name="applies_to"><option value="SEMUA">Semua perangkat</option><option value="LAPTOP">Laptop saja</option><option value="DESKTOP">Non-laptop</option></select></div>
+      <div class="col-md-6"><label class="form-label">Urutan</label><input class="form-control" name="sort_order" inputmode="numeric"></div>
+      <div class="col-12"><div class="form-check form-switch"><input type="hidden" name="is_active" value="0"><input class="form-check-input" type="checkbox" name="is_active" value="1" id="tkA" checked><label class="form-check-label" for="tkA">Aktif</label></div></div>
+    </div>
+    <div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Batal</button><button class="btn btn-primary">Simpan</button></div>
+  </form></div></div></div>
+<%- include('../partials/bottom') %>

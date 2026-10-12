@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Login · <%= app.name %></title>
+  <link rel="icon" href="/static/img/favicon.png" type="image/png">
+<%- include('../partials/pwa-head') %>
+  <link rel="stylesheet" href="/vendor/bootstrap/css/bootstrap.min.css">
+  <link rel="stylesheet" href="/vendor/bootstrap-icons/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/static/css/app.css?v=<%= typeof assetVersion !== 'undefined' ? assetVersion : '' %>">
+</head>
+<body>
+<div class="auth-wrap">
+  <section class="auth-hero">
+    <div class="d-flex align-items-center gap-2">
+      <span class="brand-logo auth-logo"><img src="/static/img/logo-azra.png" alt="<%= app.company %>"></span>
+    </div>
+    <div>
+      <h1 class="mb-3">Preventive maintenance RS Azra</h1>
+      <p class="mb-4">Pantau suhu CPU, kesehatan SSD/HDD, kondisi baterai, jadwal perawatan, dan tindak lanjut seluruh perangkat komputer rumah sakit.</p>
+      <div class="feat"><i class="bi bi-thermometer-half"></i>Evaluasi otomatis berbasis threshold yang dapat dikonfigurasi</div>
+      <div class="feat"><i class="bi bi-calendar2-check"></i>Penjadwalan & pengingat maintenance per jenis perangkat</div>
+      <div class="feat"><i class="bi bi-file-earmark-pdf"></i>Laporan resmi PDF, Excel & CSV</div>
+    </div>
+    <div class="small" style="color:#a3c2ab"><%= app.company %> · Sistem internal Tim IT</div>
+    <%- include('../partials/pulse', { cls: 'auth-pulse' }) %>
+  </section>
+  <section class="auth-form">
+    <div class="inner">
+      <img src="/static/img/logo-azra.png" alt="<%= app.company %>" class="auth-form-logo mb-4">
+      <h2 class="mb-1">Masuk</h2>
+      <p class="text-muted mb-4">Gunakan akun yang diberikan oleh administrator IT.</p>
+      <% if (error) { %><div class="alert alert-danger" role="alert"><i class="bi bi-exclamation-circle me-1"></i><%= error %></div><% } %>
+      <form method="post" action="/login" autocomplete="on" novalidate data-login-form>
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <div class="mb-3">
+          <label class="form-label" for="username">Username</label>
+          <div class="input-group"><span class="input-group-text"><i class="bi bi-person"></i></span>
+            <input class="form-control" id="username" name="username" value="<%= username %>" required autofocus autocomplete="username" maxlength="60"></div>
+        </div>
+        <div class="mb-4">
+          <label class="form-label" for="password">Password</label>
+          <div class="input-group"><span class="input-group-text"><i class="bi bi-lock"></i></span>
+            <input class="form-control" id="password" name="password" type="password" required autocomplete="current-password">
+            <button class="btn pw-toggle border" type="button" data-pw-toggle aria-label="Tampilkan password"><i class="bi bi-eye"></i></button></div>
+          <div class="caps-hint d-none" data-caps><i class="bi bi-capslock me-1"></i>Caps Lock menyala</div>
+        </div>
+        <button class="btn btn-primary w-100" type="submit"><i class="bi bi-box-arrow-in-right me-1"></i>Masuk</button>
+      </form>
+      <button type="button" class="btn btn-outline-secondary w-100 py-2 mt-2 d-none" data-install-app><i class="bi bi-download me-1"></i>Pasang aplikasi di perangkat ini</button>
+      <p class="small text-muted mt-4 mb-0"><i class="bi bi-shield-lock me-1"></i>Akun terkunci sementara setelah beberapa kali gagal login. Lupa password? Hubungi administrator IT.</p>
+    </div>
+  </section>
+</div>
+<script src="/static/js/login.js?v=<%= typeof assetVersion !== 'undefined' ? assetVersion : '' %>"></script>
+<script src="/static/js/pwa.js?v=<%= typeof assetVersion !== 'undefined' ? assetVersion : '' %>"></script>
+</body>
+</html>

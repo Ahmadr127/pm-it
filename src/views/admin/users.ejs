@@ -1,0 +1,35 @@
+<%- include('../partials/top') %>
+<div class="alert alert-info py-2 small"><i class="bi bi-info-circle me-1"></i>Akun hanya untuk tim IT: <strong>Administrator</strong> (akses penuh, akun & pengaturan), <strong>Manager IT</strong> (memantau, menyetujui hasil maintenance, laporan), dan <strong>Staff IT</strong> (mengisi maintenance). Pengguna PC/karyawan tidak perlu akun — cukup dicatat di menu Pengguna PC.</div>
+<div class="d-flex flex-wrap gap-2 align-items-center justify-content-between mb-3">
+  <form method="get" class="d-flex gap-2"><input class="form-control" name="q" value="<%= query.q || '' %>" placeholder="Cari username / nama"><select class="form-select" name="role_id"><option value="">Semua role</option><% for (const r of roles) { %><option value="<%= r.id %>" <%= String(query.role_id)===String(r.id)?'selected':'' %>><%= r.name %></option><% } %></select><button class="btn btn-navy"><i class="bi bi-search"></i></button></form>
+  <button class="btn btn-primary" data-modal-form="#userModal" data-action="/admin/users" data-title="Tambah Akun" data-values="<%= JSON.stringify({ is_active: 1 }) %>"><i class="bi bi-person-plus me-1"></i>Tambah Akun</button>
+</div>
+<div class="card table-card"><div class="table-responsive"><table class="table table-hover">
+  <thead><tr><th>Username</th><th>Nama</th><th>Role</th><th>Login terakhir</th><th>Status</th><th></th></tr></thead>
+  <tbody><% for (const u of rows) { const locked = u.locked_until && u.locked_until > h.nowDateTime(); %><tr>
+    <td class="mono"><%= u.username %></td><td><%= u.full_name %><div class="small text-muted"><%= u.email || '' %></div></td>
+    <td><%- h.pill(u.role_name, { ADMIN: 'danger', MANAGER_IT: 'info', IT_STAFF: 'primary' }[u.role_code] || 'secondary') %></td>
+    <td class="small"><%= h.fmtDateTime(u.last_login_at) %></td>
+    <td><%- u.is_active ? h.pill('Aktif','success') : h.pill('Nonaktif','dark') %><% if (locked) { %> <%- h.pill('Terkunci','danger','bi-lock') %><% } %><% if (u.must_change_password) { %><div class="small text-muted">wajib ganti password</div><% } %></td>
+    <td class="text-end text-nowrap">
+      <button class="btn btn-light btn-sm" data-modal-form="#userEditModal" data-action="/admin/users/<%= u.id %>" data-title="Ubah Akun <%= u.username %>" data-values="<%= JSON.stringify({ username: u.username, full_name: u.full_name, email: u.email, role_id: u.role_id, is_active: u.is_active }) %>"><i class="bi bi-pencil"></i></button>
+      <% if (locked) { %><form class="d-inline" method="post" action="/admin/users/<%= u.id %>/unlock" data-ajax data-reload><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="btn btn-light btn-sm" title="Buka kunci"><i class="bi bi-unlock"></i></button></form><% } %>
+      <form class="d-inline" method="post" action="/admin/users/<%= u.id %>/reset-password" data-ajax data-keep-open data-confirm="Reset password <%= u.username %>? Password sementara akan ditampilkan sekali dan semua sesi akun ini diakhiri." data-confirm-tone="warning" data-confirm-ok="Reset"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="btn btn-light btn-sm" title="Reset password"><i class="bi bi-key"></i></button></form>
+    </td></tr><% } %></tbody></table></div><%- include('../partials/pager') %></div>
+
+<% for (const [id, isNew] of [['userModal', true], ['userEditModal', false]]) { %>
+<div class="modal fade" id="<%= id %>" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+  <form method="post" data-ajax data-reload novalidate><input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div class="modal-header"><h5 class="modal-title">Akun</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body row g-3"><div class="alert alert-danger d-none" data-form-alert></div>
+      <div class="col-md-6"><label class="form-label">Username<span class="req">*</span></label><input class="form-control" name="username" maxlength="60" autocomplete="off" required></div>
+      <div class="col-md-6"><label class="form-label">Role<span class="req">*</span></label><select class="form-select" name="role_id" required><% for (const r of roles) { %><option value="<%= r.id %>"><%= r.name %></option><% } %></select></div>
+      <div class="col-12"><label class="form-label">Nama lengkap<span class="req">*</span></label><input class="form-control" name="full_name" maxlength="150" required></div>
+      <div class="col-12"><label class="form-label">Email</label><input type="email" class="form-control" name="email" maxlength="150"></div>
+      <% if (isNew) { %><div class="col-12"><label class="form-label">Password awal<span class="req">*</span></label><input type="password" class="form-control" name="password" autocomplete="new-password" required><div class="form-text"><%= pwHint %> Wajib diganti saat login pertama.</div></div><% } %>
+      <div class="col-12"><div class="form-check form-switch"><input type="hidden" name="is_active" value="0"><input class="form-check-input" type="checkbox" name="is_active" value="1" id="act<%= id %>" checked><label class="form-check-label" for="act<%= id %>">Akun aktif</label></div></div>
+    </div>
+    <div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Batal</button><button class="btn btn-primary">Simpan</button></div>
+  </form></div></div></div>
+<% } %>
+<%- include('../partials/bottom') %>

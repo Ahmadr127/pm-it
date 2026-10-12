@@ -1,0 +1,37 @@
+<%- include('../partials/top') %>
+<div class="d-flex flex-wrap gap-2 align-items-center justify-content-between mb-3">
+  <div><h2 class="h5 mb-0">Riwayat Preventive Maintenance</h2><div class="text-muted small">Seluruh pemeriksaan & perawatan perangkat.</div></div>
+  <div class="d-flex gap-2">
+    <% if (can('report.export')) { %><div class="dropdown"><button class="btn btn-light" data-bs-toggle="dropdown"><i class="bi bi-download me-1"></i>Ekspor</button>
+      <div class="dropdown-menu dropdown-menu-end"><a class="dropdown-item" href="/maintenance/export/list.xlsx<%= h.buildQuery(query, { page: null }) %>">Excel (.xlsx)</a><a class="dropdown-item" href="/maintenance/export/list.csv<%= h.buildQuery(query, { page: null }) %>">CSV</a><div class="dropdown-divider"></div><a class="dropdown-item" href="/reports">Laporan lengkap (PDF)…</a></div></div><% } %>
+    <% if (can('maintenance.create')) { %><a href="/maintenance/new" class="btn btn-primary"><i class="bi bi-clipboard2-plus me-1"></i>Tambah Maintenance</a><% } %>
+  </div>
+</div>
+<form class="filter-bar" method="get"><div class="row g-2 align-items-end">
+  <div class="col-lg-3 col-md-6"><label class="form-label small">Cari</label><div class="input-group"><span class="input-group-text"><i class="bi bi-search"></i></span><input class="form-control" name="q" value="<%= query.q || '' %>" placeholder="No., kode aset, hostname, pengguna"></div></div>
+  <div class="col-lg-2 col-6"><label class="form-label small">Dari tanggal</label><input type="date" class="form-control" name="from" value="<%= query.from || '' %>"></div>
+  <div class="col-lg-2 col-6"><label class="form-label small">Sampai</label><input type="date" class="form-control" name="to" value="<%= query.to || '' %>"></div>
+  <div class="col-lg-2 col-6"><label class="form-label small">Petugas IT</label><select class="form-select" name="technician_user_id"><option value="">Semua</option><% for (const t of techs) { %><option value="<%= t.id %>" <%= String(query.technician_user_id)===String(t.id)?'selected':'' %>><%= t.full_name %></option><% } %></select></div>
+  <div class="col-lg-3 col-6"><label class="form-label small">Departemen</label><select class="form-select" name="department_id"><option value="">Semua</option><% for (const d of departments) { %><option value="<%= d.id %>" <%= String(query.department_id)===String(d.id)?'selected':'' %>><%= d.name %></option><% } %></select></div>
+  <div class="col-lg-3 col-6"><label class="form-label small">Unit kerja</label><select class="form-select" name="work_unit_id" data-tom><option value="">Semua</option><% for (const u of units) { %><option value="<%= u.id %>" <%= String(query.work_unit_id)===String(u.id)?'selected':'' %>><%= u.department_name %> › <%= u.name %></option><% } %></select></div>
+  <div class="col-lg-2 col-6"><label class="form-label small">Status</label><select class="form-select" name="status"><option value="">Semua</option><% for (const s of M.RECORD_STATUS) { %><option <%= query.status===s?'selected':'' %>><%= s %></option><% } %></select></div>
+  <div class="col-lg-2 col-6"><label class="form-label small">Kondisi akhir</label><select class="form-select" name="final_condition"><option value="">Semua</option><% for (const s of M.FINAL) { %><option <%= query.final_condition===s?'selected':'' %>><%= s %></option><% } %></select></div>
+  <div class="col-lg-2 col-6"><label class="form-label small">Evaluasi</label><select class="form-select" name="evaluated_status"><option value="">Semua</option><% for (const [k, v] of Object.entries({ BAIK:'Baik', PERHATIAN:'Perlu Perhatian', KRITIS:'Kritis', BELUM_DIEVALUASI:'Belum Dievaluasi' })) { %><option value="<%= k %>" <%= query.evaluated_status===k?'selected':'' %>><%= v %></option><% } %></select></div>
+  <div class="col-lg-3 col-6"><label class="form-label small">Persetujuan</label><select class="form-select" name="approval"><option value="">Semua</option><% for (const s of ['Menunggu','Disetujui','Ditolak','Tidak Diperlukan']) { %><option <%= query.approval===s?'selected':'' %>><%= s %></option><% } %></select></div>
+  <div class="col-12 d-flex gap-2"><button class="btn btn-navy"><i class="bi bi-funnel me-1"></i>Terapkan</button><a href="/maintenance" class="btn btn-light">Reset</a></div>
+</div></form>
+<div class="card table-card"><div class="table-responsive">
+  <% if (!rows.length) { %><%- include('../partials/empty', { icon: 'bi-clipboard2-pulse', heading: 'Belum ada data maintenance', text: 'Data maintenance yang cocok dengan filter akan tampil di sini.', action: can('maintenance.create') ? { href: '/maintenance/new', label: 'Tambah maintenance' } : null }) %><% } else { %>
+  <table class="table table-hover"><thead><tr>
+    <%- h.sortTh('No.', 'no', query) %><%- h.sortTh('Tanggal', 'date', query) %><%- h.sortTh('Aset', 'asset', query) %><th>Pengguna</th><%- h.sortTh('Departemen', 'dept', query) %><%- h.sortTh('Teknisi', 'tech', query) %><%- h.sortTh('Status', 'status', query) %><%- h.sortTh('Kondisi Akhir', 'final', query) %><%- h.sortTh('Evaluasi', 'eval', query) %><th></th>
+  </tr></thead><tbody>
+  <% for (const r of rows) { %><tr>
+    <td><a href="/maintenance/<%= r.id %>" class="mono small fw-semibold"><%= r.maintenance_no %></a><% if (r.approval_status === 'Menunggu') { %><div><%- h.pill('Menunggu persetujuan','warning') %></div><% } else if (r.approval_status === 'Ditolak') { %><div><%- h.pill('Ditolak','danger') %></div><% } %></td>
+    <td class="text-nowrap small"><%= h.fmtDate(r.maintenance_date) %><div class="text-muted"><%= r.check_time ? r.check_time.slice(0,5) : '' %></div></td>
+    <td><span class="code-chip"><%= r.asset_code_snapshot %></span><div class="small text-muted"><%= h.deviceName(r.asset_code_snapshot, r.hostname_snapshot) %></div></td>
+    <td class="small"><%= r.employee_name_snapshot || '-' %></td><td class="small"><%= r.department_snapshot || '-' %><div class="text-muted"><%= r.work_unit_snapshot || '' %></div></td>
+    <td class="small"><%= r.technician || '-' %></td><td><%- h.recordBadge(r.status) %></td><td><%- h.finalBadge(r.final_condition) %></td><td><%- h.statusBadge(r.evaluated_status) %></td>
+    <td class="text-end text-nowrap"><a class="btn btn-light btn-sm" href="/maintenance/<%= r.id %>"><i class="bi bi-eye"></i></a> <a class="btn btn-light btn-sm" href="/maintenance/<%= r.id %>/print" target="_blank" title="Cetak PDF"><i class="bi bi-printer"></i></a></td>
+  </tr><% } %></tbody></table><% } %>
+</div><%- include('../partials/pager') %></div>
+<%- include('../partials/bottom') %>

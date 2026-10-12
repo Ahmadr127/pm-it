@@ -1,0 +1,95 @@
+<%- include('../partials/top') %>
+<%
+  const ago = (d) => { const m = Math.round((Date.now() - new Date(d)) / 60000); if (m < 1) return 'baru saja'; if (m < 60) return `${m} menit lalu`; const hh = Math.round(m / 60); if (hh < 24) return `${hh} jam lalu`; return `${Math.round(hh / 24)} hari lalu`; };
+  const fmt = (d) => new Date(d).toLocaleString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const tone = { manual: 'primary', otomatis: 'success', 'sebelum-pulihkan': 'warning', unggahan: 'info' };
+  const stale = !s.latest || (Date.now() - new Date(s.latest.created)) > 3 * 864e5;
+%>
+<div class="row g-3 mb-3">
+  <div class="col-md-6"><div class="card stat-card <%= stale ? 'tone-warn' : 'tone-ok' %>"><div class="stat-icon"><i class="bi <%= stale ? 'bi-exclamation-triangle' : 'bi-shield-check' %>"></i></div>
+    <div class="min-w-0"><div class="stat-label">Backup terakhir</div><div class="fw-bold fs-5" data-backup-latest><%= s.latest ? ago(s.latest.created) : 'Belum pernah' %></div>
+      <div class="small text-muted"><%= s.latest ? `${fmt(s.latest.created)}, ${s.latest.label.toLowerCase()}` : 'Buat backup pertama sekarang' %></div></div></div></div>
+  <div class="col-md-6"><div class="card stat-card tone-purple"><div class="stat-icon"><i class="bi bi-archive"></i></div>
+    <div class="min-w-0"><div class="stat-label">Tersimpan</div><div class="fw-bold fs-5"><%= s.list.length %> file, <%= mb(s.totalSize) %></div>
+      <div class="small text-muted text-break"><%= s.backup_copy_dir ? `Disalin juga ke ${s.backup_copy_dir}` : 'Belum ada salinan ke folder lain' %></div></div></div></div>
+</div>
+
+<% if (!s.backup_copy_dir) { %>
+<div class="alert alert-warning d-flex gap-2"><i class="bi bi-lightbulb"></i><div class="small">Saat ini backup hanya tersimpan di PC server. Bila hardisk PC server rusak, backup ikut hilang. Isi <strong>Folder salinan</strong> di bawah (mis. hardisk kedua / hardisk eksternal), atau unduh backup secara berkala ke flashdisk.</div></div>
+<% } %>
+
+<div class="row g-3">
+  <div class="col-xl-8">
+    <div class="card mb-3"><div class="card-body d-flex flex-wrap gap-3 align-items-center justify-content-between">
+      <div><div class="fw-bold"><i class="bi bi-database-add me-1"></i>Buat backup sekarang</div>
+        <div class="small text-muted">Berisi seluruh data (aset, maintenance, riwayat, akun, pengaturan) + semua foto & dokumen. Hasilnya satu file .zip.</div></div>
+      <form method="post" action="/admin/backup/create" data-ajax data-loading="Membuat backup...">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <button class="btn btn-primary btn-lg" type="submit"><i class="bi bi-cloud-arrow-down me-1"></i>Backup Sekarang</button>
+      </form>
+    </div></div>
+
+    <div class="card"><div class="card-header d-flex justify-content-between align-items-center"><span><i class="bi bi-archive me-1"></i>Daftar backup</span><span class="small text-muted text-break d-none d-md-inline">Folder: <%= s.dir %></span></div>
+      <% if (!s.list.length) { %>
+        <div class="card-body"><%- include('../partials/empty', { icon: 'bi-archive', heading: 'Belum ada backup', text: 'Tekan "Backup Sekarang" untuk membuat backup pertama.' }) %></div>
+      <% } else { %>
+      <div class="table-responsive"><table class="table align-middle mb-0" data-backup-list>
+        <thead><tr><th>Waktu</th><th>Jenis</th><th class="text-end">Ukuran</th><th class="text-end">Aksi</th></tr></thead>
+        <tbody>
+        <% s.list.forEach((b) => { %>
+          <tr>
+            <td><div class="fw-semibold"><%= fmt(b.created) %></div><div class="small text-muted"><%= ago(b.created) %></div></td>
+            <td><%- h.pill(b.label, tone[b.kind] || 'secondary') %></td>
+            <td class="text-end text-nowrap"><%= mb(b.size) %></td>
+            <td class="text-end text-nowrap">
+              <a class="btn btn-light btn-sm" href="/admin/backup/download/<%= b.name %>" title="Unduh"><i class="bi bi-download"></i><span class="d-none d-lg-inline ms-1">Unduh</span></a>
+              <button class="btn btn-light btn-sm" type="button" data-modal-form="#restoreModal" data-action="/admin/backup/<%= b.name %>/restore" data-title="Pulihkan data dari backup <%= fmt(b.created) %>?" title="Pulihkan"><i class="bi bi-arrow-counterclockwise" style="color:#b37400"></i><span class="d-none d-lg-inline ms-1">Pulihkan</span></button>
+              <form class="d-inline" method="post" action="/admin/backup/<%= b.name %>/delete" data-ajax data-reload data-confirm="File backup <%= fmt(b.created) %> akan dihapus permanen." data-confirm-title="Hapus backup?" data-confirm-ok="Ya, hapus">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="btn btn-light btn-sm text-danger" title="Hapus"><i class="bi bi-trash"></i></button></form>
+            </td>
+          </tr>
+        <% }) %>
+        </tbody>
+      </table></div>
+      <% } %>
+    </div>
+  </div>
+
+  <div class="col-xl-4">
+    <div class="card mb-3"><div class="card-header"><i class="bi bi-folder-symlink me-1"></i>Folder salinan</div><div class="card-body">
+      <form method="post" action="/admin/backup/settings" data-ajax data-reload novalidate>
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <div class="alert alert-danger d-none" data-form-alert></div>
+        <label class="form-label">Salin juga setiap backup ke <span class="text-muted fw-normal">(opsional)</span></label>
+        <input class="form-control" name="backup_copy_dir" value="<%= s.backup_copy_dir %>" placeholder="mis. D:\Backup-PMIT" maxlength="250">
+        <div class="form-text mb-2">Sebaiknya di hardisk lain / hardisk eksternal. Kosongkan bila tidak perlu.</div>
+        <button class="btn btn-primary w-100" type="submit"><i class="bi bi-check2 me-1"></i>Simpan</button>
+      </form>
+    </div></div>
+
+    <div class="card"><div class="card-header"><i class="bi bi-upload me-1"></i>Unggah file backup</div><div class="card-body">
+      <p class="small text-muted">Untuk memindahkan data ke PC server baru: unggah file backup (.zip) dari PC lama, lalu tekan <strong>Pulihkan</strong>.</p>
+      <form method="post" action="/admin/backup/upload" enctype="multipart/form-data" data-ajax data-loading="Mengunggah & memeriksa...">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <div class="alert alert-danger d-none" data-form-alert></div>
+        <input class="form-control mb-2" type="file" name="file" accept=".zip,application/zip" required>
+        <button class="btn btn-outline-primary w-100" type="submit"><i class="bi bi-upload me-1"></i>Unggah</button>
+      </form>
+    </div></div>
+  </div>
+</div>
+
+<div class="modal fade" id="restoreModal" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+  <form method="post" data-ajax data-loading="Memulihkan data... jangan tutup halaman">
+    <div class="modal-header"><h5 class="modal-title">Pulihkan data</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <div class="alert alert-danger d-none" data-form-alert></div>
+      <div class="alert alert-warning small mb-3"><i class="bi bi-exclamation-triangle me-1"></i>Seluruh data saat ini akan <strong>diganti</strong> dengan isi backup. Data yang diinput setelah backup tersebut dibuat akan hilang.<br>Sebagai pengaman, aplikasi otomatis membuat backup <em>"Sebelum pemulihan"</em> terlebih dahulu.</div>
+      <label class="form-label">Ketik <strong>PULIHKAN</strong> untuk melanjutkan</label>
+      <input class="form-control" name="confirm" autocomplete="off" required>
+    </div>
+    <div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Batal</button><button class="btn btn-warning" type="submit"><i class="bi bi-arrow-counterclockwise me-1"></i>Pulihkan</button></div>
+  </form>
+</div></div></div>
+<%- include('../partials/bottom') %>

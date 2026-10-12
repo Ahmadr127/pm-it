@@ -1,0 +1,48 @@
+<%- include('../partials/top') %>
+<div class="row g-3">
+  <div class="col-xl-3">
+    <div class="card"><div class="card-header">Jenis laporan</div><div class="list-group list-group-flush">
+      <% for (const [k, l] of Object.entries(TYPES)) { %><a href="/reports?type=<%= k %>" class="list-group-item list-group-item-action <%= q.type===k ? 'active' : '' %>" <%= q.type===k ? 'style="background:var(--purple-600);border-color:var(--purple-600)"' : '' %>><%= l %></a><% } %>
+    </div></div>
+  </div>
+  <div class="col-xl-9">
+    <form class="filter-bar" method="get"><input type="hidden" name="type" value="<%= q.type %>"><div class="row g-2 align-items-end">
+      <% if (!['terlambat','penggunaan','perbaikan','storage'].includes(q.type)) { %>
+      <div class="col-md-3 col-6"><label class="form-label small">Dari tanggal</label><input type="date" class="form-control" name="from" value="<%= q.from || '' %>"></div>
+      <div class="col-md-3 col-6"><label class="form-label small">Sampai</label><input type="date" class="form-control" name="to" value="<%= q.to || '' %>"></div>
+      <% } %>
+      <div class="col-md-3 col-6"><label class="form-label small">Kode aset / nama perangkat</label><input class="form-control" name="asset_q" value="<%= q.asset_q || '' %>" placeholder="ADEV-IT-PC-0008"></div>
+      <% if (['hasil','per-aset','terlambat'].includes(q.type)) { %><div class="col-md-3 col-6"><label class="form-label small">Petugas IT</label><select class="form-select" name="technician_user_id"><option value="">Semua</option><% for (const t of techs) { %><option value="<%= t.id %>" <%= q.technician_user_id==String(t.id)?'selected':'' %>><%= t.full_name %></option><% } %></select></div><% } %>
+      <div class="col-md-3 col-6"><label class="form-label small">Departemen</label><select class="form-select" name="department_id"><option value="">Semua</option><% for (const d of departments) { %><option value="<%= d.id %>" <%= q.department_id==String(d.id)?'selected':'' %>><%= d.name %></option><% } %></select></div>
+      <div class="col-md-3 col-6"><label class="form-label small">Unit kerja</label><select class="form-select" name="work_unit_id"><option value="">Semua</option><% for (const u of units) { %><option value="<%= u.id %>" <%= q.work_unit_id==String(u.id)?'selected':'' %>><%= u.department_name %> › <%= u.name %></option><% } %></select></div>
+      <div class="col-md-3 col-6"><label class="form-label small">Lokasi</label><select class="form-select" name="location_id"><option value="">Semua</option><% for (const l of locations) { %><option value="<%= l.id %>" <%= q.location_id==String(l.id)?'selected':'' %>><%= locText(l) %></option><% } %></select></div>
+      <% if (['hasil','per-aset'].includes(q.type)) { %>
+      <div class="col-md-3 col-6"><label class="form-label small">Kondisi akhir</label><select class="form-select" name="final_condition"><option value="">Semua</option><% for (const f of ['Baik','Baik dengan catatan','Perlu Monitoring','Perlu Perbaikan','Kritis']) { %><option <%= q.final_condition===f?'selected':'' %>><%= f %></option><% } %></select></div>
+      <div class="col-md-3 col-6"><label class="form-label small">Status maintenance</label><select class="form-select" name="status"><option value="">Semua (kecuali Draft)</option><% for (const s of ['Terjadwal','Dalam Proses','Selesai','Ditunda']) { %><option <%= q.status===s?'selected':'' %>><%= s %></option><% } %></select></div>
+      <div class="col-md-3 col-6"><label class="form-label small">Kesehatan storage</label><select class="form-select" name="storage_status"><option value="">Semua</option><% for (const [k, v] of Object.entries({ BAIK:'Baik', PERHATIAN:'Perlu Perhatian', KRITIS:'Kritis', TIDAK_TERSEDIA:'Tidak Tersedia' })) { %><option value="<%= k %>" <%= q.storage_status===k?'selected':'' %>><%= v %></option><% } %></select></div>
+      <% } %>
+      <% if (q.type === 'storage') { %><div class="col-md-3 col-6"><div class="form-check mb-2"><input class="form-check-input" type="checkbox" name="include_attention" value="1" id="ia" <%= q.include_attention?'checked':'' %>><label class="form-check-label small" for="ia">Sertakan yang "Perlu Perhatian"</label></div></div><% } %>
+      <div class="col-12 d-flex gap-2 flex-wrap"><button class="btn btn-navy"><i class="bi bi-funnel me-1"></i>Tampilkan</button><a href="/reports?type=<%= q.type %>" class="btn btn-light">Reset</a>
+        <% if (can('report.export')) { %><div class="ms-auto d-flex gap-2">
+          <a class="btn btn-outline-danger" href="/reports/export<%= exportQuery %>&fmt=pdf"><i class="bi bi-file-earmark-pdf me-1"></i>PDF</a>
+          <a class="btn btn-outline-success" href="/reports/export<%= exportQuery %>&fmt=xlsx"><i class="bi bi-file-earmark-excel me-1"></i>Excel</a>
+          <a class="btn btn-outline-secondary" href="/reports/export<%= exportQuery %>&fmt=csv"><i class="bi bi-filetype-csv me-1"></i>CSV</a></div><% } %>
+      </div>
+    </div></form>
+
+    <div class="card table-card">
+      <div class="card-header d-flex flex-wrap justify-content-between gap-2"><span><%= report.title %></span><span class="small text-muted fw-normal"><%= filterLabel %></span></div>
+      <% if (report.summary && report.summary.length) { %><div class="px-3 py-2 border-bottom d-flex flex-wrap gap-2"><% for (const s of report.summary) { %><span class="badge text-bg-light fw-semibold"><%= s %></span><% } %></div><% } %>
+      <div class="table-responsive">
+        <% if (report.needs) { %><%- include('../partials/empty', { icon: 'bi-search', heading: 'Pilih aset', text: report.needs }) %>
+        <% } else if (!rows.length) { %><%- include('../partials/empty', { icon: 'bi-file-earmark-bar-graph', heading: 'Tidak ada data', text: 'Tidak ada data untuk filter yang dipilih.' }) %>
+        <% } else { %>
+        <table class="table table-hover"><thead><tr><% for (const c of report.columns) { %><th class="<%= c.align === 'right' ? 'text-end' : '' %>"><%= c.header %></th><% } %></tr></thead><tbody>
+          <% for (const r of rows) { %><tr><% for (const c of report.columns) { const v = typeof c.value === 'function' ? c.value(r) : r[c.key]; %><td class="small <%= c.align === 'right' ? 'text-end' : '' %>" style="white-space:pre-line;<%= c.color && c.color(r) ? `color:${c.color(r)};font-weight:600` : '' %>"><%= v === null || v === undefined || v === '' ? '-' : v %></td><% } %></tr><% } %>
+        </tbody></table><% } %>
+      </div>
+      <%- include('../partials/pager') %>
+    </div>
+  </div>
+</div>
+<%- include('../partials/bottom') %>

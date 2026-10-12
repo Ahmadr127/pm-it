@@ -1,0 +1,18 @@
+<div class="modal fade" id="repairModal" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-dialog-centered modal-lg"><div class="modal-content">
+  <form method="post" action="/follow-ups/repairs" data-ajax data-reload novalidate><input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <input type="hidden" name="asset_id" data-fill><input type="hidden" name="maintenance_record_id" data-fill><input type="hidden" name="follow_up_id" data-fill>
+    <div class="modal-header"><h5 class="modal-title">Catat Perbaikan / Penggantian Komponen</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body row g-3"><div class="alert alert-danger d-none" data-form-alert></div>
+      <div class="col-md-4"><label class="form-label">Tanggal<span class="req">*</span></label><input type="date" class="form-control" name="repair_date" max="<%= h.today() %>" required></div>
+      <div class="col-md-4"><label class="form-label">Jenis<span class="req">*</span></label><select class="form-select" name="repair_type" required><option>Perbaikan</option><option>Penggantian Komponen</option><option>Upgrade</option></select></div>
+      <div class="col-md-4"><label class="form-label">Komponen<span class="req">*</span></label><input class="form-control" name="component" maxlength="120" placeholder="SSD, baterai, fan, RAM..." required></div>
+      <div class="col-md-6"><label class="form-label">Komponen lama</label><input class="form-control" name="old_part" maxlength="200"></div>
+      <div class="col-md-6"><label class="form-label">Komponen baru</label><input class="form-control" name="new_part" maxlength="200"></div>
+      <div class="col-md-4"><label class="form-label">Serial komponen baru</label><input class="form-control mono" name="new_part_serial" maxlength="100"></div>
+      <div class="col-md-4"><label class="form-label">Vendor</label><input class="form-control" name="vendor" maxlength="150"></div>
+      <div class="col-md-4"><label class="form-label">Biaya</label><div class="input-group"><span class="input-group-text">Rp</span><input class="form-control" name="cost" inputmode="decimal"></div></div>
+      <div class="col-md-6"><label class="form-label">Teknisi</label><select class="form-select" name="technician_user_id"><option value="">-</option><% for (const t of techs) { %><option value="<%= t.id %>"><%= t.full_name %></option><% } %></select></div>
+      <div class="col-12"><label class="form-label">Keterangan</label><textarea class="form-control" name="description" rows="2"></textarea></div>
+    </div>
+    <div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Batal</button><button class="btn btn-primary">Simpan</button></div>
+  </form></div></div></div>

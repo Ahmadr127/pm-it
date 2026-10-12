@@ -1,0 +1,42 @@
+<%- include('../partials/top') %>
+<% if (!employee) { %>
+  <div class="card"><div class="card-body"><%- include('../partials/empty', { icon: 'bi-person-x', heading: 'Akun belum tertaut ke data karyawan', text: 'Hubungi administrator IT agar akun Anda dihubungkan dengan data Pengguna PC.' }) %></div></div>
+<% } else { %>
+<div class="mb-3"><h2 class="h5 mb-0">Halo, <%= employee.full_name %></h2><div class="text-muted small"><%= [employee.department_name, employee.work_unit_name].filter(Boolean).join(' › ') %></div></div>
+<div class="row g-3">
+  <div class="col-lg-7">
+    <div class="card mb-3"><div class="card-header">Perangkat yang menjadi tanggung jawab saya</div><div class="card-body">
+      <% if (!devices.length) { %><%- include('../partials/empty', { icon: 'bi-laptop', heading: 'Belum ada perangkat', text: 'Tidak ada perangkat yang sedang ditugaskan kepada Anda.' }) %><% } %>
+      <div class="row g-3"><% for (const d of devices) { %><div class="col-md-6"><div class="border rounded-4 p-3 h-100">
+        <div class="d-flex justify-content-between align-items-center"><span class="code-chip"><%= d.asset_code %></span><%- h.statusBadge(d.current_health_status) %></div>
+        <div class="fw-semibold mt-2"><%= d.hostname %></div><div class="small text-muted"><%= [d.device_type, d.brand, d.model].filter(Boolean).join(' · ') %></div>
+        <div class="small mt-2">Peran: <%= d.assignment_role === 'PIC_UNIT' ? 'PIC unit' : 'Pengguna utama' %> · sejak <%= h.fmtDate(d.start_date) %></div>
+        <div class="small">Maintenance terakhir: <%= h.fmtDate(d.last_maintenance_date) %> · berikutnya: <%= h.fmtDate(d.next_maintenance_date) %></div>
+      </div></div><% } %></div>
+    </div></div>
+    <div class="card"><div class="card-header">Status tindak lanjut IT pada perangkat saya</div><div class="table-responsive">
+      <% if (!followUps.length) { %><div class="p-3 text-muted small">Tidak ada tindak lanjut.</div><% } else { %>
+      <table class="table"><thead><tr><th>Perangkat</th><th>Tindak lanjut</th><th>Status</th><th>Target</th></tr></thead><tbody>
+      <% for (const f of followUps) { %><tr><td class="mono small"><%= f.asset_code %></td><td class="small"><%= f.title %></td><td><%- h.followBadge(f.status) %></td><td class="small"><%= h.fmtDate(f.target_date) %></td></tr><% } %></tbody></table><% } %>
+    </div></div>
+  </div>
+  <div class="col-lg-5">
+    <% if (can('self.complaint') && devices.length) { %>
+    <div class="card mb-3"><div class="card-header"><i class="bi bi-megaphone me-2"></i>Laporkan keluhan</div><div class="card-body">
+      <form method="post" action="/my-devices/complaints" data-ajax data-reload novalidate><input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <div class="alert alert-danger d-none" data-form-alert></div>
+        <div class="mb-2"><label class="form-label">Perangkat<span class="req">*</span></label><select class="form-select" name="asset_id" required><% for (const d of devices) { %><option value="<%= d.id %>"><%= d.asset_code %> · <%= d.hostname %></option><% } %></select></div>
+        <div class="mb-2"><label class="form-label">Kategori<span class="req">*</span></label><select class="form-select" name="category" required><% for (const c of CATEGORIES) { %><option><%= c %></option><% } %></select></div>
+        <div class="mb-3"><label class="form-label">Uraian keluhan<span class="req">*</span></label><textarea class="form-control" name="description" rows="4" maxlength="3000" required placeholder="Contoh: laptop terasa panas dan kipas berbunyi keras sejak 2 hari terakhir."></textarea></div>
+        <button class="btn btn-primary"><i class="bi bi-send me-1"></i>Kirim ke Tim IT</button>
+      </form>
+    </div></div><% } %>
+    <div class="card"><div class="card-header">Keluhan saya</div><div class="card-body">
+      <% if (!complaints.length) { %><div class="text-muted small">Belum ada keluhan.</div><% } %>
+      <% for (const c of complaints) { %><div class="border-bottom py-2 small"><div class="d-flex justify-content-between"><span><span class="mono"><%= c.asset_code %></span> · <%= c.category %></span><%- h.pill(c.status, { Baru: 'secondary', Ditinjau: 'info', Ditindaklanjuti: 'primary', Selesai: 'success', Ditolak: 'dark' }[c.status]) %></div>
+        <div class="text-muted"><%= h.fmtDateTime(c.created_at) %></div><div><%= c.description %></div><% if (c.it_response) { %><div class="mt-1 p-2 rounded-3" style="background:var(--purple-100)"><strong>Tanggapan IT:</strong> <%= c.it_response %></div><% } %></div><% } %>
+    </div></div>
+  </div>
+</div>
+<% } %>
+<%- include('../partials/bottom') %>

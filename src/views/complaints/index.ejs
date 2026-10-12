@@ -1,0 +1,31 @@
+<%- include('../partials/top') %>
+<div class="d-flex flex-wrap gap-2 align-items-center justify-content-between mb-3">
+  <div><h2 class="h5 mb-0">Keluhan dari Pengguna PC</h2><div class="text-muted small">Laporan yang dikirim karyawan dari portal "Perangkat Saya".</div></div>
+  <form method="get" class="d-flex gap-2"><select class="form-select" name="status" data-autosubmit><option value="">Semua status</option><% for (const s of STATUS) { %><option <%= query.status===s?'selected':'' %>><%= s %></option><% } %></select></form>
+</div>
+<div class="card table-card"><div class="table-responsive">
+  <% if (!rows.length) { %><%- include('../partials/empty', { icon: 'bi-chat-left-text', heading: 'Belum ada keluhan', text: '' }) %><% } else { %>
+  <table class="table table-hover"><thead><tr><th>Tanggal</th><th>Aset</th><th>Pelapor</th><th>Kategori & keluhan</th><th>Status</th><th>Tanggapan IT</th><th></th></tr></thead><tbody>
+  <% for (const c of rows) { %><tr>
+    <td class="small text-nowrap"><%= h.fmtDateTime(c.created_at) %></td>
+    <td><a href="/assets/<%= c.asset_id %>" class="code-chip"><%= c.asset_code %></a><div class="small text-muted"><%= c.hostname %></div></td>
+    <td class="small"><%= c.reporter %></td>
+    <td style="max-width:360px"><span class="badge text-bg-light"><%= c.category %></span><div class="small mt-1" style="white-space:pre-line"><%= c.description %></div></td>
+    <td><%- h.pill(c.status, { Baru: 'danger', Ditinjau: 'info', Ditindaklanjuti: 'primary', Selesai: 'success', Ditolak: 'dark' }[c.status]) %><% if (c.follow_up_id) { %><div class="small mt-1"><a href="/follow-ups?asset_id=<%= c.asset_id %>">Tindak lanjut: <%= c.follow_up_status %></a></div><% } %></td>
+    <td class="small"><%= c.it_response || '-' %><div class="text-muted"><%= c.handler || '' %></div></td>
+    <td class="text-end"><button class="btn btn-light btn-sm" data-modal-form="#cModal" data-action="/complaints/<%= c.id %>" data-title="Tangani Keluhan #<%= c.id %>" data-values="<%= JSON.stringify({ status: c.status === 'Baru' ? 'Ditinjau' : c.status, it_response: c.it_response }) %>"><i class="bi bi-reply"></i></button></td>
+  </tr><% } %></tbody></table><% } %>
+</div><%- include('../partials/pager') %></div>
+<div class="modal fade" id="cModal" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+  <form method="post" data-ajax data-reload novalidate><input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div class="modal-header"><h5 class="modal-title">Tangani Keluhan</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body row g-3"><div class="alert alert-danger d-none" data-form-alert></div>
+      <div class="col-md-6"><label class="form-label">Status</label><select class="form-select" name="status"><% for (const s of STATUS) { %><option><%= s %></option><% } %></select></div>
+      <div class="col-12"><label class="form-label">Tanggapan IT (terlihat oleh pelapor)</label><textarea class="form-control" name="it_response" rows="3"></textarea></div>
+      <div class="col-12"><div class="form-check"><input class="form-check-input" type="checkbox" name="create_follow_up" value="1" id="cfu"><label class="form-check-label" for="cfu">Buat tindak lanjut IT dari keluhan ini</label></div></div>
+      <div class="col-md-6"><label class="form-label">PIC tindak lanjut</label><select class="form-select" name="pic_user_id"><option value="">—</option><% for (const t of techs) { %><option value="<%= t.id %>"><%= t.full_name %></option><% } %></select></div>
+      <div class="col-md-6"><label class="form-label">Prioritas</label><select class="form-select" name="priority"><option>Rendah</option><option selected>Sedang</option><option>Tinggi</option><option>Kritis</option></select></div>
+    </div>
+    <div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Batal</button><button class="btn btn-primary">Simpan</button></div>
+  </form></div></div></div>
+<%- include('../partials/bottom') %>

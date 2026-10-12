@@ -1,0 +1,21 @@
+<%# Parameter: pg = { page, per, total } %>
+<% const pages = Math.max(1, Math.ceil(pg.total / pg.per)); const from = pg.total ? (pg.page - 1) * pg.per + 1 : 0; const to = Math.min(pg.total, pg.page * pg.per); %>
+<div class="table-footer">
+  <div>Menampilkan <strong><%= from %>–<%= to %></strong> dari <strong><%= pg.total %></strong> data</div>
+  <div class="d-flex align-items-center gap-2 flex-wrap">
+    <form method="get" class="d-flex align-items-center gap-1">
+      <% for (const [k, v] of Object.entries(query)) { if (['per_page','page'].includes(k) || typeof v !== 'string') continue; %><input type="hidden" name="<%= k %>" value="<%= v %>"><% } %>
+      <select name="per_page" class="form-select form-select-sm" style="width:auto" data-autosubmit aria-label="Jumlah per halaman">
+        <% for (const n of [10, 20, 50, 100]) { %><option value="<%= n %>" <%= pg.per === n ? 'selected' : '' %>><%= n %> / hal</option><% } %>
+      </select>
+    </form>
+    <nav aria-label="Navigasi halaman"><ul class="pagination pagination-sm">
+      <li class="page-item <%= pg.page <= 1 ? 'disabled' : '' %>"><a class="page-link" href="<%= h.buildQuery(query, { page: pg.page - 1 }) %>" aria-label="Sebelumnya">‹</a></li>
+      <% let start = Math.max(1, pg.page - 2), end = Math.min(pages, start + 4); start = Math.max(1, end - 4); %>
+      <% if (start > 1) { %><li class="page-item"><a class="page-link" href="<%= h.buildQuery(query, { page: 1 }) %>">1</a></li><% if (start > 2) { %><li class="page-item disabled"><span class="page-link">…</span></li><% } } %>
+      <% for (let i = start; i <= end; i++) { %><li class="page-item <%= i === pg.page ? 'active' : '' %>"><a class="page-link" href="<%= h.buildQuery(query, { page: i }) %>"><%= i %></a></li><% } %>
+      <% if (end < pages) { if (end < pages - 1) { %><li class="page-item disabled"><span class="page-link">…</span></li><% } %><li class="page-item"><a class="page-link" href="<%= h.buildQuery(query, { page: pages }) %>"><%= pages %></a></li><% } %>
+      <li class="page-item <%= pg.page >= pages ? 'disabled' : '' %>"><a class="page-link" href="<%= h.buildQuery(query, { page: pg.page + 1 }) %>" aria-label="Berikutnya">›</a></li>
+    </ul></nav>
+  </div>
+</div>

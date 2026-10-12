@@ -1,0 +1,25 @@
+<%- include('../partials/top') %>
+<div class="alert alert-info small"><i class="bi bi-shield-lock me-1"></i>Hak akses diperiksa di <strong>setiap endpoint backend</strong>, bukan hanya menyembunyikan tombol. Perubahan berlaku seketika. Administrator selalu memiliki akses penuh.</div>
+<div class="row g-3">
+  <% for (const r of roles) { const locked = r.code === 'ADMIN'; %>
+  <div class="col-xl-6"><div class="card h-100">
+    <div class="card-header d-flex justify-content-between align-items-center"><span><%= r.name %> <span class="badge text-bg-light mono"><%= r.code %></span></span><span class="small text-muted fw-normal"><%= counts[r.id] || 0 %> akun</span></div>
+    <div class="card-body">
+      <div class="small text-muted mb-2"><%= r.description || '' %></div>
+      <form method="post" action="/admin/roles/<%= r.id %>/permissions" data-ajax data-reload><input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <div class="alert alert-danger d-none" data-form-alert></div>
+        <% for (const g of groups) { %><div class="mb-2"><div class="small fw-bold text-uppercase text-muted" style="font-size:.7rem"><%= g %></div>
+          <% for (const p of perms.filter(x => x.group_name === g)) { %><div class="form-check"><input class="form-check-input" type="checkbox" name="perms" value="<%= p.id %>" id="p<%= r.id %>_<%= p.id %>" <%= has.has(`${r.id}:${p.id}`) ? 'checked' : '' %> <%= locked ? 'disabled' : '' %>><label class="form-check-label small" for="p<%= r.id %>_<%= p.id %>"><%= p.name %> <span class="text-muted mono" style="font-size:.7rem"><%= p.code %></span></label></div><% } %>
+        </div><% } %>
+        <% if (!locked) { %><button class="btn btn-primary btn-sm mt-2"><i class="bi bi-check2 me-1"></i>Simpan hak akses</button><% } %>
+      </form>
+    </div></div></div>
+  <% } %>
+  <div class="col-xl-6"><div class="card"><div class="card-header">Tambah role kustom</div><div class="card-body">
+    <form method="post" action="/admin/roles" data-ajax data-reload novalidate><input type="hidden" name="_csrf" value="<%= csrfToken %>"><div class="alert alert-danger d-none" data-form-alert></div>
+      <div class="row g-2"><div class="col-md-4"><label class="form-label">Kode</label><input class="form-control text-uppercase" name="code" maxlength="40" placeholder="AUDITOR"></div><div class="col-md-8"><label class="form-label">Nama</label><input class="form-control" name="name" maxlength="100"></div>
+        <div class="col-12"><label class="form-label">Deskripsi</label><input class="form-control" name="description" maxlength="255"></div></div>
+      <button class="btn btn-soft btn-sm mt-3">Buat role</button></form>
+  </div></div></div>
+</div>
+<%- include('../partials/bottom') %>

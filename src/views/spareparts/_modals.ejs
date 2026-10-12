@@ -1,0 +1,48 @@
+<datalist id="dlCategory"><% for (const c of CATEGORIES) { %><option value="<%= c %>"><% } %></datalist>
+<datalist id="dlUnit"><% for (const u of ['pcs', 'unit', 'buah', 'tube', 'botol', 'roll', 'meter', 'set']) { %><option value="<%= u %>"><% } %></datalist>
+
+<% for (const mode of ['add', 'edit']) { %>
+<div class="modal fade" id="part<%= mode === 'add' ? 'Add' : 'Edit' %>Modal" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+  <form method="post" action="/spare-parts" data-ajax data-reload novalidate>
+    <div class="modal-header"><h5 class="modal-title"><%= mode === 'add' ? 'Tambah barang' : 'Ubah barang' %></h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <div class="alert alert-danger d-none" data-form-alert></div>
+      <div class="mb-3"><label class="form-label">Nama barang<span class="req">*</span></label><input class="form-control" name="name" maxlength="150" required placeholder="mis. Thermal paste Arctic MX-4"></div>
+      <div class="row g-2 mb-3">
+        <div class="col-7"><label class="form-label">Kategori</label><input class="form-control" name="category" list="dlCategory" maxlength="80"></div>
+        <div class="col-5"><label class="form-label">Satuan</label><input class="form-control" name="unit" list="dlUnit" maxlength="20" placeholder="pcs"></div>
+      </div>
+      <div class="row g-2 mb-3">
+        <% if (mode === 'add') { %><div class="col-6"><label class="form-label">Stok awal</label><input class="form-control" name="stock" type="number" min="0" value="0"></div><% } %>
+        <div class="col-6"><label class="form-label">Stok minimum</label><input class="form-control" name="min_stock" type="number" min="0" placeholder="0">
+          <div class="form-text">Peringatan muncul bila stok ≤ angka ini.</div></div>
+      </div>
+      <div class="mb-0"><label class="form-label">Catatan</label><input class="form-control" name="notes" maxlength="255" placeholder="mis. merek, tempat penyimpanan"></div>
+    </div>
+    <div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Batal</button><button class="btn btn-primary" type="submit"><i class="bi bi-check2 me-1"></i>Simpan</button></div>
+  </form>
+</div></div></div>
+<% } %>
+
+<div class="modal fade" id="stockModal" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+  <form method="post" data-ajax data-reload novalidate>
+    <div class="modal-header"><h5 class="modal-title">Stok</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <div class="alert alert-danger d-none" data-form-alert></div>
+      <div class="mb-3"><label class="form-label">Jenis</label>
+        <div class="choice-pills" data-field-wrap>
+          <% for (const [k, lb] of [['MASUK', 'Stok masuk'], ['KELUAR', 'Pakai / keluar'], ['KOREKSI', 'Koreksi']]) { %>
+          <div class="form-check"><input class="form-check-input" type="radio" name="movement_type" id="mt<%= k %>" value="<%= k %>"><label class="form-check-label" for="mt<%= k %>"><%= lb %></label></div>
+          <% } %>
+        </div></div>
+      <div class="mb-3"><label class="form-label">Jumlah<span class="req">*</span></label><input class="form-control" name="qty" type="number" min="0" required>
+        <div class="form-text">Untuk <strong>Koreksi</strong>, isi jumlah stok sebenarnya hasil hitung fisik.</div></div>
+      <div class="mb-3"><label class="form-label">Dipakai untuk PC <span class="text-muted fw-normal">(opsional, khusus pemakaian)</span></label>
+        <select name="asset_id" data-asset-search placeholder="Cari kode aset / pengguna..."></select></div>
+      <div class="mb-0"><label class="form-label">Catatan</label><input class="form-control" name="note" maxlength="255" placeholder="mis. pembelian Oktober, dipakai di IGD"></div>
+    </div>
+    <div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Batal</button><button class="btn btn-primary" type="submit"><i class="bi bi-check2 me-1"></i>Simpan</button></div>
+  </form>
+</div></div></div>

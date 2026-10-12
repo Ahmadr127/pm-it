@@ -1,0 +1,59 @@
+<%- include('../partials/top') %>
+<% const a = asset; const v = (k) => (a[k] === null || a[k] === undefined ? '' : a[k]); const isEdit = mode === 'edit'; %>
+<form method="post" action="<%= isEdit ? `/assets/${a.id}` : '/assets' %><%= `?_csrf=${csrfToken}` %>" enctype="multipart/form-data" data-ajax novalidate>
+  <div class="alert alert-danger d-none" data-form-alert></div>
+  <div class="row g-3">
+    <div class="col-xl-8">
+      <div class="card mb-3">
+        <div class="card-header"><i class="bi bi-upc-scan me-2"></i>Identitas Aset</div>
+        <div class="card-body row g-3">
+          <div class="col-md-4"><label class="form-label">Kode aset <span class="text-muted fw-normal">(opsional)</span></label><input class="form-control text-uppercase mono" name="asset_code" value="<%= v('asset_code') %>" placeholder="Kosongkan bila belum ada" maxlength="50"><div class="form-text">Bila PC belum punya kode aset, kosongkan — sistem memberi nomor otomatis yang dapat diganti nanti.</div></div>
+          <div class="col-md-4"><label class="form-label">Jenis perangkat<span class="req">*</span></label>
+            <select class="form-select" name="device_type" id="deviceType" required><% for (const t of A.DEVICE_TYPES) { %><option <%= a.device_type===t?'selected':'' %>><%= t %></option><% } %></select></div>
+          <div class="col-md-4" id="otherTypeWrap"><label class="form-label">Jenis lainnya</label><input class="form-control" name="device_type_other" value="<%= v('device_type_other') %>" maxlength="80" placeholder="mis. Mini PC, All-in-One"></div>
+          <div class="col-md-4"><label class="form-label">Status aset<span class="req">*</span></label>
+            <select class="form-select" name="asset_status" required><% for (const t of A.ASSET_STATUS) { %><option <%= a.asset_status===t?'selected':'' %>><%= t %></option><% } %></select></div>
+        </div>
+      </div>
+      <div class="card mb-3">
+        <div class="card-header"><i class="bi bi-motherboard me-2"></i>Spesifikasi & Jaringan</div>
+        <div class="card-body row g-3">
+          <div class="col-md-6"><label class="form-label">Processor</label><input class="form-control" name="processor" value="<%= v('processor') %>" maxlength="150" placeholder="Intel Core i5-12500"></div>
+          <div class="col-md-3"><label class="form-label">Kapasitas RAM</label><div class="input-group"><input class="form-control" name="ram_gb" value="<%= v('ram_gb') %>" inputmode="decimal"><span class="input-group-text">GB</span></div></div>
+          <div class="col-md-3"><label class="form-label">VGA / GPU</label><input class="form-control" name="gpu" value="<%= v('gpu') %>" maxlength="150"></div>
+          <div class="col-md-6"><label class="form-label">Jenis & kapasitas storage</label><input class="form-control" name="storage_summary" value="<%= v('storage_summary') %>" maxlength="200" placeholder="SSD NVMe 512 GB + HDD 1 TB"><div class="form-text">Detail tiap storage (merek, serial) dikelola di halaman detail aset.</div></div>
+          <div class="col-md-6"><label class="form-label">Sistem operasi</label><input class="form-control" name="operating_system" value="<%= v('operating_system') %>" maxlength="120" placeholder="Windows 11 Pro 23H2"></div>
+          <div class="col-md-6"><label class="form-label">IP address</label><input class="form-control mono" name="ip_address" value="<%= v('ip_address') %>" placeholder="192.168.10.25"></div>
+          <div class="col-12"><div class="form-check form-switch"><input type="hidden" name="has_battery" value="0"><input class="form-check-input" type="checkbox" name="has_battery" value="1" id="hasBattery" <%= a.has_battery ? 'checked' : '' %>><label class="form-check-label" for="hasBattery">Perangkat memiliki baterai (laptop) — pemeriksaan baterai menjadi wajib</label></div></div>
+        </div>
+      </div>
+      <div class="card mb-3">
+        <div class="card-header"><i class="bi bi-receipt me-2"></i>Lokasi & Kondisi</div>
+        <div class="card-body row g-3">
+          <div class="col-md-6"><label class="form-label">Lokasi perangkat</label>
+            <select class="form-select" name="location_id" data-tom><option value="">— Pilih lokasi —</option><% for (const l of locations.filter(x => x.is_active || x.id === a.location_id)) { %><option value="<%= l.id %>" <%= a.location_id===l.id?'selected':'' %>><%= locText(l) %></option><% } %></select></div>
+          <div class="col-md-6"><label class="form-label">Kondisi perangkat</label>
+            <select class="form-select" name="physical_condition"><option value="">— Belum dinilai —</option><% for (const t of A.PHYSICAL) { %><option <%= a.physical_condition===t?'selected':'' %>><%= t %></option><% } %></select></div>
+          <% if (isEdit) { %><div class="col-md-6"><label class="form-label">Alasan perubahan lokasi/status (opsional)</label><input class="form-control" name="change_reason" maxlength="255"></div><% } %>
+          <div class="col-12"><label class="form-label">Catatan tambahan</label><textarea class="form-control" name="notes" rows="3"><%= v('notes') %></textarea></div>
+        </div>
+      </div>
+    </div>
+    <div class="col-xl-4">
+      <div class="card mb-3">
+        <div class="card-header"><i class="bi bi-camera me-2"></i>Foto Perangkat</div>
+        <div class="card-body">
+          <% if (a.photo_path) { %><img src="/files/asset-photo/<%= a.id %>" class="thumb mb-2" alt="Foto perangkat"><div class="form-check mb-2"><input class="form-check-input" type="checkbox" name="remove_photo" value="1" id="rmPhoto"><label class="form-check-label small" for="rmPhoto">Hapus foto saat ini</label></div><% } %>
+          <input type="file" class="form-control" name="photo" accept="image/jpeg,image/png,image/webp" data-max-mb="5">
+          <div class="form-text">JPG, PNG, atau WEBP. Maks. 5 MB.</div>
+        </div>
+      </div>
+      <div class="card"><div class="card-body small text-muted"><i class="bi bi-info-circle me-1"></i>Pengguna & PIC unit ditetapkan dari halaman detail aset atau modul Pengguna PC, sehingga riwayat perpindahan tercatat.</div></div>
+    </div>
+  </div>
+  <div class="sticky-actions d-flex gap-2 justify-content-end">
+    <a href="<%= isEdit ? `/assets/${a.id}` : '/assets' %>" class="btn btn-light">Batal</a>
+    <button class="btn btn-primary" type="submit"><i class="bi bi-check2 me-1"></i><%= isEdit ? 'Simpan Perubahan' : 'Simpan Aset' %></button>
+  </div>
+</form>
+<%- include('../partials/bottom', { scripts: ['asset-form.js'] }) %>

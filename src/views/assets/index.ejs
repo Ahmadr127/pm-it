@@ -1,0 +1,79 @@
+<%- include('../partials/top') %>
+<div class="d-flex flex-wrap gap-2 align-items-center justify-content-between mb-3">
+  <div>
+    <h2 class="h5 mb-0">Inventaris Perangkat Komputer</h2>
+    <div class="text-muted small">PC, laptop, workstation, dan perangkat komputer lain milik perusahaan.</div>
+  </div>
+  <div class="d-flex gap-2 flex-wrap">
+    <% if (can('asset.export')) { %>
+      <div class="dropdown">
+        <button class="btn btn-light" data-bs-toggle="dropdown"><i class="bi bi-download me-1"></i>Ekspor</button>
+        <div class="dropdown-menu dropdown-menu-end">
+          <a class="dropdown-item" href="/assets/export.xlsx<%= h.buildQuery(query, { page: null, per_page: null }) %>"><i class="bi bi-file-earmark-excel me-2 text-success"></i>Excel (.xlsx)</a>
+          <a class="dropdown-item" href="/assets/export.csv<%= h.buildQuery(query, { page: null, per_page: null }) %>"><i class="bi bi-filetype-csv me-2"></i>CSV</a>
+        </div>
+      </div>
+    <% } %>
+    <a class="btn btn-light" href="/assets/labels<%= h.buildQuery(query, { page: null, per_page: null, sort: null, dir: null }) %>" target="_blank" title="Cetak label QR untuk ditempel di PC (sesuai filter saat ini)"><i class="bi bi-qr-code me-1"></i>Label QR</a>
+    <% if (can('asset.import')) { %><a class="btn btn-light" href="/assets/import"><i class="bi bi-upload me-1"></i>Impor</a><% } %>
+    <% if (can('asset.create')) { %><a class="btn btn-primary" href="/assets/new"><i class="bi bi-plus-lg me-1"></i>Tambah Aset</a><% } %>
+  </div>
+</div>
+
+<form class="filter-bar" method="get">
+  <div class="row g-2 align-items-end">
+    <div class="col-lg-3 col-md-6"><label class="form-label small">Cari</label>
+      <div class="input-group"><span class="input-group-text"><i class="bi bi-search"></i></span><input class="form-control" name="q" value="<%= query.q || '' %>" placeholder="Kode, hostname, SN, IP, pengguna, NIK..."></div></div>
+    <div class="col-lg-2 col-md-3 col-6"><label class="form-label small">Jenis</label>
+      <select class="form-select" name="device_type"><option value="">Semua</option><% for (const t of A.DEVICE_TYPES) { %><option <%= query.device_type===t?'selected':'' %>><%= t %></option><% } %></select></div>
+    <div class="col-lg-2 col-md-3 col-6"><label class="form-label small">Status aset</label>
+      <select class="form-select" name="asset_status"><option value="">Semua</option><% for (const t of A.ASSET_STATUS) { %><option <%= query.asset_status===t?'selected':'' %>><%= t %></option><% } %></select></div>
+    <div class="col-lg-2 col-md-3 col-6"><label class="form-label small">Kesehatan</label>
+      <select class="form-select" name="health"><option value="">Semua</option><% for (const [k, v] of Object.entries({ BAIK:'Baik', PERHATIAN:'Perlu Perhatian', KRITIS:'Kritis', BELUM_DIEVALUASI:'Belum Dievaluasi' })) { %><option value="<%= k %>" <%= query.health===k?'selected':'' %>><%= v %></option><% } %></select></div>
+    <div class="col-lg-3 col-md-3 col-6"><label class="form-label small">Unit kerja</label>
+      <select class="form-select" name="work_unit_id" data-tom><option value="">Semua unit</option><% for (const u of units) { %><option value="<%= u.id %>" <%= String(query.work_unit_id)===String(u.id)?'selected':'' %>><%= u.department_name %> › <%= u.name %></option><% } %></select></div>
+    <div class="col-lg-3 col-md-4 col-6"><label class="form-label small">Departemen</label>
+      <select class="form-select" name="department_id"><option value="">Semua</option><% for (const d of departments) { %><option value="<%= d.id %>" <%= String(query.department_id)===String(d.id)?'selected':'' %>><%= d.name %></option><% } %></select></div>
+    <div class="col-lg-3 col-md-4 col-6"><label class="form-label small">Lokasi</label>
+      <select class="form-select" name="location_id" data-tom><option value="">Semua lokasi</option><% for (const l of locations) { %><option value="<%= l.id %>" <%= String(query.location_id)===String(l.id)?'selected':'' %>><%= locText(l) %></option><% } %></select></div>
+    <div class="col-lg-2 col-md-4 col-6"><label class="form-label small">Maintenance</label>
+      <select class="form-select" name="due"><option value="">Semua</option><option value="overdue" <%= query.due==='overdue'?'selected':'' %>>Lewat jadwal</option><option value="never" <%= query.due==='never'?'selected':'' %>>Belum pernah</option></select></div>
+    <div class="col-lg-4 col-md-12 d-flex gap-2"><button class="btn btn-navy"><i class="bi bi-funnel me-1"></i>Terapkan</button><a href="/assets" class="btn btn-light">Reset</a></div>
+  </div>
+</form>
+
+<div class="card table-card">
+  <div class="table-responsive">
+    <% if (!rows.length) { %>
+      <%- include('../partials/empty', { icon: 'bi-pc-display', heading: 'Tidak ada aset', text: Object.keys(query).length ? 'Tidak ada aset yang cocok dengan filter.' : 'Belum ada aset terdaftar.', action: can('asset.create') && !Object.keys(query).length ? { href: '/assets/new', label: 'Tambah aset pertama' } : null }) %>
+    <% } else { %>
+    <table class="table table-hover">
+      <thead><tr>
+        <%- h.sortTh('Kode Aset', 'code', query) %><%- h.sortTh('Perangkat', 'hostname', query) %><%- h.sortTh('Jenis', 'type', query) %>
+        <%- h.sortTh('Pengguna', 'user', query) %><%- h.sortTh('Departemen / Unit', 'dept', query) %><%- h.sortTh('Status', 'status', query) %>
+        <%- h.sortTh('Kesehatan', 'health', query) %><%- h.sortTh('Jadwal Berikutnya', 'next', query) %><th></th>
+      </tr></thead>
+      <tbody>
+      <% for (const a of rows) { const overdue = a.next_maintenance_date && a.next_maintenance_date < h.today(); %>
+        <tr>
+          <td><a href="/assets/<%= a.id %>" class="code-chip"><%= a.asset_code %></a><div class="small text-muted mt-1"><%= a.inventory_number || '' %></div></td>
+          <td><div class="fw-semibold"><%= h.deviceName(a.asset_code, a.hostname, a.device_type) %></div><div class="small text-muted"><%= [a.brand, a.model].filter(Boolean).join(' ') || '-' %></div></td>
+          <td class="small"><%= a.device_type === 'Lainnya' ? (a.device_type_other || 'Lainnya') : a.device_type %></td>
+          <td><% if (a.employee_name) { %><div><%= a.employee_name %></div><div class="small text-muted"><%= a.employee_nik %></div><% } else { %><span class="text-muted small">Belum ditetapkan</span><% } %></td>
+          <td class="small"><div><%= a.department_name || '-' %></div><div class="text-muted"><%= a.work_unit_name || '' %></div></td>
+          <td><%- h.assetStatusBadge(a.asset_status) %></td>
+          <td><%- h.statusBadge(a.current_health_status) %></td>
+          <td class="small <%= overdue ? 'text-danger fw-semibold' : '' %>"><%= h.fmtDate(a.next_maintenance_date) %><% if (overdue) { %><div><i class="bi bi-alarm"></i> terlambat</div><% } %></td>
+          <td class="text-end text-nowrap">
+            <% if (can('maintenance.create')) { %><a class="btn btn-soft btn-sm" href="/maintenance/new?asset_id=<%= a.id %>" title="Mulai maintenance"><i class="bi bi-clipboard2-plus"></i></a><% } %>
+            <a class="btn btn-light btn-sm" href="/assets/<%= a.id %>" title="Detail"><i class="bi bi-eye"></i></a>
+          </td>
+        </tr>
+      <% } %>
+      </tbody>
+    </table>
+    <% } %>
+  </div>
+  <%- include('../partials/pager') %>
+</div>
+<%- include('../partials/bottom') %>

@@ -1,0 +1,46 @@
+<div class="modal fade" id="empModal" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable"><div class="modal-content">
+  <form method="post" action="/employees" data-ajax novalidate><input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div class="modal-header"><h5 class="modal-title">Pengguna PC</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <div class="alert alert-danger d-none" data-form-alert></div>
+      <div class="row g-3">
+        <div class="col-lg-7">
+          <div class="soft-card soft-info">
+            <div class="soft-title"><span class="ico"><i class="bi bi-person-vcard"></i></span>Data Pengguna</div>
+            <div class="row g-3">
+              <div class="col-md-4"><label class="form-label">NIK / ID karyawan<span class="req">*</span></label><input class="form-control text-uppercase" name="nik" maxlength="40" required></div>
+              <div class="col-md-8"><label class="form-label">Nama lengkap<span class="req">*</span></label><input class="form-control" name="full_name" maxlength="150" required></div>
+              <div class="col-md-6"><label class="form-label">Jabatan</label><input class="form-control" name="position" maxlength="120"></div>
+              <div class="col-md-6"><label class="form-label">Email perusahaan</label><input type="email" class="form-control" name="email" maxlength="150"></div>
+              <div class="col-md-6"><label class="form-label">Unit kerja</label>
+                <select class="form-select" name="work_unit_id" data-tom><option value="">— Pilih —</option><% for (const u of units) { %><option value="<%= u.id %>"><%= u.department_name ? `${u.department_name} › ${u.name}` : u.name %></option><% } %></select></div>
+              <div class="col-md-6"><label class="form-label">Lokasi kerja</label>
+                <select class="form-select" name="location_id"><option value="">— Pilih —</option><% for (const l of locations.filter(x => x.is_active)) { %><option value="<%= l.id %>"><%= locText(l) %></option><% } %></select></div>
+              <div class="col-md-6"><label class="form-label">Ruangan</label><input class="form-control" name="room" maxlength="120"></div>
+              <div class="col-md-6"><label class="form-label">Nama atasan / PIC unit</label><input class="form-control" name="supervisor_name" maxlength="150"></div>
+              <div class="col-md-6"><label class="form-label">Status<span class="req">*</span></label>
+                <select class="form-select" name="status"><% for (const s of STATUS) { %><option><%= s %></option><% } %></select>
+                <div class="form-text">"Tidak Aktif" melepas penugasan perangkat aktif (riwayat tetap tersimpan).</div></div>
+              <div class="col-12"><label class="form-label">Keterangan tambahan</label><textarea class="form-control" name="notes" rows="2"></textarea></div>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-5">
+          <div class="soft-card soft-phy">
+            <div class="soft-title"><span class="ico"><i class="bi bi-laptop"></i></span>Perangkat yang Digunakan</div>
+            <div class="mb-3"><label class="form-label">Kode aset PC / laptop</label>
+              <select name="asset_id" data-asset-search placeholder="Cari kode aset / hostname..."></select>
+              <div class="form-text">Opsional. Jenis perangkat mengikuti data aset. Bila perangkat sudah dipakai orang lain, penugasan lama otomatis ditutup dan tercatat di riwayat.</div></div>
+            <div class="row g-2">
+              <div class="col-md-6"><label class="form-label">Peran</label><select class="form-select" name="assignment_role"><option value="PENGGUNA_UTAMA">Pengguna utama</option><option value="PIC_UNIT">PIC unit kerja</option></select></div>
+              <div class="col-md-6"><label class="form-label">Status penggunaan</label><select class="form-select" name="usage_status"><option>Aktif</option><option>Dipinjamkan</option></select></div>
+              <div class="col-md-6"><label class="form-label">Tanggal mulai penggunaan</label><input type="date" class="form-control" name="start_date" max="<%= h.today() %>"></div>
+            </div>
+          </div>
+          <div class="mt-3"><label class="form-label">Alasan perubahan / perpindahan (opsional)</label><input class="form-control" name="transfer_reason" maxlength="255" placeholder="Rotasi, promosi, pindah ruangan..."></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Batal</button><button class="btn btn-primary" type="submit"><i class="bi bi-check2 me-1"></i>Simpan</button></div>
+  </form>
+</div></div></div>

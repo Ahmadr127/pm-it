@@ -1,0 +1,44 @@
+<%- include('../partials/top') %>
+<% const e = emp; const current = history.filter(x => x.is_current); %>
+<div class="row g-3">
+  <div class="col-lg-4">
+    <div class="card"><div class="card-body">
+      <div class="d-flex align-items-center gap-3 mb-3"><span class="avatar" style="width:52px;height:52px;font-size:1.1rem"><%= e.full_name.split(' ').map(s => s[0]).slice(0,2).join('').toUpperCase() %></span>
+        <div><h2 class="h5 mb-0"><%= e.full_name %></h2><div class="text-muted small"><%= e.position || '-' %></div></div></div>
+      <dl class="kv">
+        <dt>NIK</dt><dd class="mono"><%= e.nik %></dd><dt>Departemen</dt><dd><%= e.department_name || '-' %></dd><dt>Unit kerja</dt><dd><%= e.work_unit_name || '-' %></dd>
+        <dt>Lokasi</dt><dd><%= [e.location_name, e.location_building].filter(Boolean).join(' · ') || '-' %></dd><dt>Ruangan</dt><dd><%= e.room || '-' %></dd>
+        <dt>Email</dt><dd><%= e.email || '-' %></dd><dt>Atasan / PIC</dt><dd><%= e.supervisor_name || '-' %></dd>
+        <dt>Status</dt><dd><%= e.status %></dd><dt>Keterangan</dt><dd class="fw-normal"><%= e.notes || '-' %></dd>
+      </dl>
+      <% if (can('employee.manage')) { %>
+      <div class="d-flex gap-2 mt-3">
+        <button class="btn btn-primary btn-sm" data-modal-form="#empModal" data-action="/employees/<%= e.id %>" data-title="Ubah Pengguna PC"
+          data-values="<%= JSON.stringify({ nik: e.nik, full_name: e.full_name, position: e.position, department_id: e.department_id, work_unit_id: e.work_unit_id, location_id: e.location_id, room: e.room, phone_ext: e.phone_ext, email: e.email, supervisor_name: e.supervisor_name, status: e.status, notes: e.notes, start_date: h.today(), usage_status: 'Aktif', assignment_role: 'PENGGUNA_UTAMA' }) %>"><i class="bi bi-pencil me-1"></i>Ubah / Pindahkan</button>
+        <form method="post" action="/employees/<%= e.id %>/delete" data-ajax data-confirm="Hapus pengguna <%= e.full_name %>? Penugasan perangkat aktif akan dilepas. Riwayat tetap tersimpan." data-confirm-ok="Ya, hapus"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="btn btn-outline-danger btn-sm"><i class="bi bi-trash"></i></button></form>
+      </div><% } %>
+    </div></div>
+  </div>
+  <div class="col-lg-8">
+    <div class="card mb-3"><div class="card-header">Perangkat yang sedang digunakan</div><div class="card-body">
+      <% if (!current.length) { %><div class="text-muted small">Tidak ada perangkat aktif.</div><% } %>
+      <div class="row g-2"><% for (const x of current) { %><div class="col-md-6"><a href="/assets/<%= x.asset_id %>" class="d-block border rounded-4 p-3 text-reset">
+        <div class="d-flex justify-content-between"><span class="code-chip"><%= x.asset_code %></span><span class="small text-muted"><%= x.assignment_role === 'PIC_UNIT' ? 'PIC unit' : 'Pengguna utama' %></span></div>
+        <div class="fw-semibold mt-2"><%= h.deviceName(x.asset_code, x.hostname, x.device_type) %></div><div class="small text-muted"><%= x.device_type %> · sejak <%= h.fmtDate(x.start_date) %> · <%= x.status %></div></a></div><% } %></div>
+    </div></div>
+    <div class="card"><div class="card-header">Riwayat penggunaan perangkat</div><div class="table-responsive">
+      <% if (!history.length) { %><%- include('../partials/empty', { icon: 'bi-clock-history', heading: 'Belum ada riwayat', text: '' }) %><% } else { %>
+      <table class="table"><thead><tr><th>Aset</th><th>Peran</th><th>Departemen / Unit (saat itu)</th><th>Lokasi</th><th>Periode</th><th>Status</th><th>Alasan</th></tr></thead><tbody>
+      <% for (const x of history) { %><tr>
+        <td><a href="/assets/<%= x.asset_id %>" class="code-chip"><%= x.asset_code %></a><div class="small text-muted"><%= h.deviceName(x.asset_code, x.hostname) %></div></td>
+        <td class="small"><%= x.assignment_role === 'PIC_UNIT' ? 'PIC unit' : 'Pengguna utama' %></td>
+        <td class="small"><%= [x.department_name_snapshot, x.work_unit_name_snapshot].filter(Boolean).join(' › ') || '-' %></td>
+        <td class="small"><%= [x.location_text_snapshot, x.room].filter(Boolean).join(' · R. ') || '-' %></td>
+        <td class="small text-nowrap"><%= h.fmtDate(x.start_date) %> – <%= x.end_date ? h.fmtDate(x.end_date) : 'sekarang' %></td>
+        <td><%- h.pill(x.status, x.is_current ? 'success' : 'secondary') %></td><td class="small text-muted"><%= x.reason || '' %></td>
+      </tr><% } %></tbody></table><% } %>
+    </div></div>
+  </div>
+</div>
+<% if (can('employee.manage')) { %><%- include('_modal') %><% } %>
+<%- include('../partials/bottom', { scripts: ['employee-form.js'] }) %>

@@ -1,0 +1,25 @@
+<%# Blok satu perangkat storage. Parameter: type ('SSD'|'HDD'), idx, s (data), A %>
+<% const p = `${type === 'SSD' ? 'ssd' : 'hdd'}[${idx}]`; const val = (k) => (s && s[k] !== null && s[k] !== undefined ? s[k] : ''); const merkModel = [val('brand'), val('model')].filter(Boolean).join(' '); %>
+<div class="storage-item" data-storage-item data-type="<%= type %>">
+  <div class="storage-head">
+    <span><i class="bi <%= type === 'SSD' ? 'bi-device-ssd' : 'bi-device-hdd' %> me-1"></i><%= type %> <span data-storage-no>#<%= Number(idx) + 1 %></span>
+      <% if (s && s.storage_device_id) { %><span class="badge text-bg-light ms-1" title="Terdaftar di data aset">terdaftar</span><% } %></span>
+    <button type="button" class="btn btn-sm btn-link text-danger p-0" data-remove-storage title="Hapus blok ini"><i class="bi bi-x-circle"></i> Hapus</button>
+  </div>
+  <input type="hidden" name="<%= p %>[storage_device_id]" value="<%= val('storage_device_id') %>">
+  <input type="hidden" name="<%= p %>[data_source]" value="<%= val('data_source') || 'MANUAL' %>" data-source-flag>
+  <%# Disimpan tanpa ditampilkan: data storage terdaftar (jenis, merek, serial) & isian lama agar tidak hilang saat diubah %>
+  <input type="hidden" name="<%= p %>[serial_number]" value="<%= val('serial_number') %>">
+  <input type="hidden" name="<%= p %>[used_percent]" value="<%= val('used_percent') %>">
+  <input type="hidden" name="<%= p %>[reading_tool]" value="<%= val('reading_tool') %>">
+  <input type="hidden" name="<%= p %>[interface]" value="<%= val('interface') %>">
+  <input type="hidden" name="<%= p %>[model]" value="<%= merkModel %>">
+  <div class="row g-2">
+    <div class="col-sm-4"><label class="form-label">Kapasitas</label><div class="input-group input-group-sm"><input class="form-control" name="<%= p %>[capacity_gb]" value="<%= val('capacity_gb') %>" inputmode="decimal"><span class="input-group-text">GB</span></div></div>
+    <div class="col-sm-4"><label class="form-label">Suhu <%= type %></label><div class="input-group input-group-sm"><input class="form-control" name="<%= p %>[temperature_c]" value="<%= val('temperature_c') %>" inputmode="decimal" data-numeric data-measured placeholder="mis. 42"><span class="input-group-text">°C</span></div></div>
+    <div class="col-sm-4"><label class="form-label">Health <%= type %></label><div class="input-group input-group-sm"><input class="form-control" name="<%= p %>[health_percent]" value="<%= val('health_percent') %>" inputmode="decimal" data-numeric data-measured data-min="0" data-max="100" placeholder="0–100"><span class="input-group-text">%</span></div></div>
+    <div class="col-sm-6"><label class="form-label">Status SMART <%= type %><span class="req" data-req-complete>*</span></label>
+      <select class="form-select form-select-sm" name="<%= p %>[smart_status]" data-smart><option value="">— Pilih —</option>
+        <% for (const sm of ['Baik', 'Peringatan', 'Kritis', 'Tidak Tersedia']) { %><option <%= val('smart_status') === sm ? 'selected' : '' %>><%= sm %></option><% } %></select></div>
+  </div>
+</div>

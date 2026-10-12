@@ -1,0 +1,52 @@
+<%- include('../partials/top') %>
+<div class="row g-3">
+  <div class="col-xl-5">
+    <div class="card mb-3"><div class="card-header"><i class="bi bi-qr-code me-1"></i>Alamat aplikasi</div><div class="card-body">
+      <% if (!a.ip && !a.custom) { %>
+        <div class="alert alert-warning small mb-0">Komputer server belum terhubung ke jaringan (tidak ada alamat IP). Hubungkan ke WiFi/LAN kantor lalu muat ulang halaman ini.</div>
+      <% } else { %>
+        <div class="d-flex gap-3 align-items-center flex-wrap">
+          <div style="width:170px;max-width:45%"><%- qrApp %></div>
+          <div class="small flex-grow-1">
+            <div class="text-muted">Scan dengan kamera HP:</div>
+            <div class="fw-semibold mono text-break fs-6"><%= a.primary %></div>
+            <% if (a.https && a.http && a.primary !== a.http) { %><div class="text-muted mt-2">Tanpa HTTPS: <span class="mono"><%= a.http %></span></div><% } %>
+            <% if (!a.httpsActive) { %><div class="text-warning mt-2"><i class="bi bi-exclamation-triangle me-1"></i>HTTPS belum aktif — aplikasi tetap bisa dibuka lewat browser, tetapi belum bisa dipasang sebagai aplikasi di HP.</div><% } %>
+          </div>
+        </div>
+      <% } %>
+    </div></div>
+    <% if (qrCa) { %>
+    <div class="card"><div class="card-header"><i class="bi bi-shield-check me-1"></i>Sertifikat keamanan (sekali per perangkat)</div><div class="card-body">
+      <div class="d-flex gap-3 align-items-center flex-wrap">
+        <div style="width:130px;max-width:40%"><%- qrCa %></div>
+        <div class="small flex-grow-1">
+          <div class="text-muted">Scan untuk mengunduh sertifikat:</div>
+          <div class="mono text-break"><%= caUrl %></div>
+          <a class="btn btn-sm btn-outline-primary mt-2" href="/ca.crt"><i class="bi bi-download me-1"></i>Unduh PM-IT-CA.crt</a>
+        </div>
+      </div>
+    </div></div>
+    <% } %>
+  </div>
+  <div class="col-xl-7">
+    <div class="card"><div class="card-header"><i class="bi bi-list-check me-1"></i>Langkah-langkah</div><div class="card-body small">
+      <ol class="mb-0 ps-3" style="line-height:1.7">
+        <li class="mb-2"><strong>Sekali saja, di komputer server:</strong> jalankan <code>6-IZINKAN-AKSES-HP.bat</code> (klik <em>Yes</em> saat Windows meminta izin administrator). Ini membuka akses aplikasi di firewall Windows.</li>
+        <li class="mb-2">Pastikan HP / PC Staff IT terhubung ke <strong>jaringan WiFi/LAN kantor yang sama</strong> dengan komputer server.</li>
+        <li class="mb-2"><strong>Pasang sertifikat keamanan</strong> (sekali per perangkat) — scan QR "Sertifikat keamanan" lalu:
+          <ul class="mt-1">
+            <li><strong>Android:</strong> Setelan → Keamanan / Keamanan &amp; privasi → Enkripsi &amp; kredensial → <em>Instal sertifikat</em> → <em>Sertifikat CA</em> → pilih file <code>PM-IT-CA.crt</code>.</li>
+            <li><strong>iPhone:</strong> buka tautan di <em>Safari</em> → Izinkan → Pengaturan → <em>Profil Diunduh</em> → Instal. Lalu Pengaturan → Umum → Info → <em>Pengaturan Kepercayaan Sertifikat</em> → aktifkan "PM-IT Local CA".</li>
+            <li><strong>PC Windows lain:</strong> buka file → <em>Install Certificate</em> → Local Machine → <em>Place all certificates in the following store</em> → <em>Trusted Root Certification Authorities</em> → Finish.</li>
+          </ul>
+        </li>
+        <li class="mb-2">Scan QR <strong>Alamat aplikasi</strong>, lalu login seperti biasa.</li>
+        <li><strong>Pasang sebagai aplikasi:</strong> Chrome Android → menu ⋮ → <em>Instal aplikasi</em> / <em>Tambahkan ke layar utama</em>. iPhone (Safari) → tombol Bagikan → <em>Tambahkan ke Layar Utama</em>.</li>
+      </ol>
+      <hr>
+      <div class="text-muted">Tanpa langkah 3 & 5 pun aplikasi tetap bisa dipakai dari browser HP lewat alamat <span class="mono"><%= a.http || 'http://IP-server:3000' %></span> — termasuk memotret dokumentasi langsung dengan kamera HP.</div>
+    </div></div>
+  </div>
+</div>
+<%- include('../partials/bottom') %>

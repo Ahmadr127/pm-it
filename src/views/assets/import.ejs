@@ -1,0 +1,46 @@
+<%- include('../partials/top') %>
+<div class="row g-3">
+  <div class="col-lg-5">
+    <div class="card">
+      <div class="card-header"><i class="bi bi-upload me-2"></i>Impor Data Aset</div>
+      <div class="card-body">
+        <div class="p-3 rounded-3 mb-3" style="background:#f2f4ff">
+          <div class="fw-semibold mb-1"><i class="bi bi-stars me-1"></i>Cara cepat (disarankan)</div>
+          <ol class="small mb-2 ps-3">
+            <li>Unduh <a href="/assets/import/template-sederhana.xlsx"><strong>template daftar PC</strong></a> — kolom: Hostname, Jenis, Merek, Nama Pengguna, Lokasi / Gedung, Ruangan.</li>
+            <li>Isi satu baris per PC (boleh salin dari Excel Anda). Hanya <strong>Hostname</strong> yang wajib.</li>
+            <li>Unggah. Pengguna PC & lokasi yang belum ada dibuat otomatis; PC yang hostname-nya sudah terdaftar dilewati.</li>
+          </ol>
+        </div>
+        <div class="small text-muted mb-3">Impor lengkap (semua kolom aset: IP, RAM, garansi, dll.): gunakan <a href="/assets/import/template.xlsx">template lengkap</a>. Bila ada satu baris salah, <strong>tidak ada data yang disimpan</strong>.</div>
+        <form method="post" action="/assets/import?_csrf=<%= csrfToken %>" enctype="multipart/form-data">
+          <div class="mb-3"><input type="file" class="form-control" name="file" accept=".xlsx,.csv" required><div class="form-text">.xlsx atau .csv, maks. 5 MB / 5.000 baris.</div></div>
+          <div class="form-check mb-3"><input class="form-check-input" type="checkbox" name="update_existing" value="1" id="upd"><label class="form-check-label small" for="upd">Impor lengkap: perbarui data bila kode aset sudah ada</label></div>
+          <button class="btn btn-primary"><i class="bi bi-cloud-upload me-1"></i>Validasi & Impor</button>
+          <a href="/assets" class="btn btn-light">Kembali</a>
+        </form>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-7">
+    <% if (result) { %>
+      <% if (result.ok) { %>
+        <div class="alert alert-success"><i class="bi bi-check-circle me-1"></i>Impor berhasil: <strong><%= result.created %></strong> aset baru<% if (result.updated) { %>, <strong><%= result.updated %></strong> diperbarui<% } %>. <a href="/assets">Lihat daftar aset</a> · <a href="/assets/labels" target="_blank">Cetak label QR</a></div>
+        <% if (result.skipped && result.skipped.length) { %><div class="alert alert-light border small"><strong><%= result.skipped.length %> PC dilewati</strong> karena hostname sudah terdaftar: <%= result.skipped.slice(0, 50).join(', ') %><%= result.skipped.length > 50 ? ', …' : '' %></div><% } %>
+      <% } else if (result.empty) { %>
+        <div class="alert alert-warning">Tidak ada baris data yang dapat dibaca dari file.</div>
+      <% } else { %>
+        <div class="card">
+          <div class="card-header text-danger"><i class="bi bi-x-octagon me-2"></i><%= result.errors.length %> baris bermasalah — tidak ada data yang disimpan</div>
+          <div class="table-responsive"><table class="table">
+            <thead><tr><th>Baris</th><th>Kode aset / hostname</th><th>Masalah</th></tr></thead>
+            <tbody><% for (const e of result.errors.slice(0, 300)) { %><tr><td><%= e.row %></td><td class="mono"><%= e.code || '-' %></td><td class="small"><ul class="mb-0 ps-3"><% for (const m of e.messages) { %><li><%= m %></li><% } %></ul></td></tr><% } %></tbody>
+          </table></div>
+        </div>
+      <% } %>
+    <% } else { %>
+      <div class="card"><div class="card-body"><%- include('../partials/empty', { icon: 'bi-file-earmark-spreadsheet', heading: 'Belum ada file diunggah', text: 'Hasil validasi akan tampil di sini.' }) %></div></div>
+    <% } %>
+  </div>
+</div>
+<%- include('../partials/bottom') %>

@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Label QR Perangkat · <%= app.name %></title>
+  <link rel="icon" href="/static/img/favicon.png" type="image/png">
+  <style>
+    @page { size: A4; margin: 10mm 8mm; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: "Segoe UI", Arial, sans-serif; color: #1b2240; background: #eef0f6; }
+    .bar { position: sticky; top: 0; background: #fff; border-bottom: 1px solid #dde1ee; padding: 10px 16px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; z-index: 2; }
+    .bar h1 { font-size: 16px; margin: 0; flex: 1 1 auto; }
+    .bar .note { font-size: 12px; color: #6b7393; flex-basis: 100%; }
+    .btn { border: 0; border-radius: 8px; padding: 8px 14px; font-weight: 600; cursor: pointer; background: #4c8c2b; color: #fff; font-size: 14px; text-decoration: none; }
+    .btn.light { background: #eef0f6; color: #1b2240; }
+    .sheet { width: 194mm; margin: 12px auto; display: grid; grid-template-columns: repeat(3, 1fr); gap: 3mm; }
+    .label { background: #fff; border: 1px dashed #b9bfd6; border-radius: 3mm; height: 38mm; padding: 2.5mm; display: flex; gap: 2.5mm; align-items: center; overflow: hidden; break-inside: avoid; page-break-inside: avoid; }
+    .qr { width: 27mm; height: 27mm; flex: 0 0 27mm; }
+    .qr svg { width: 100%; height: 100%; display: block; }
+    .info { min-width: 0; flex: 1 1 auto; font-size: 7pt; line-height: 1.25; max-height: 33mm; overflow: hidden; display: flex; flex-direction: column; justify-content: center; }
+    .info > div { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .info > .host { font-weight: 800; font-size: 9pt; white-space: normal; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; margin-bottom: .8mm; }
+    .muted { color: #5c6484; }
+    .code { font-family: Consolas, monospace; font-size: 6.5pt; color: #5c6484; margin-top: .8mm; }
+    .scan { margin-top: 1mm; font-size: 6pt; font-weight: 700; color: #4c8c2b; letter-spacing: .02em; }
+    .empty { text-align: center; padding: 60px 16px; color: #6b7393; }
+    @media print {
+      body { background: #fff; }
+      .bar { display: none; }
+      .sheet { margin: 0 auto; }
+      .label { border-color: #c9cede; }
+    }
+  </style>
+</head>
+<body>
+  <div class="bar">
+    <h1>Label QR Perangkat (<%= labels.length %>)</h1>
+    <button class="btn" type="button" data-print>Cetak</button>
+    <a class="btn light" href="/assets">Kembali</a>
+    <div class="note">Tempel di casing PC. Scan dengan kamera HP → langsung membuka form maintenance PC tersebut (login bila diminta). Alamat di QR: <strong><%= net.primary %></strong><% if (!net.custom && !net.httpsActive) { %> · alamat dapat diatur di Pengaturan Sistem<% } %>.</div>
+  </div>
+  <% if (!labels.length) { %><div class="empty">Tidak ada perangkat sesuai filter.</div><% } %>
+  <div class="sheet">
+    <% for (const l of labels) { const a = l.a; const loc = [a.location_name, a.location_building].filter(Boolean).join(' · '); %>
+      <div class="label">
+        <div class="qr"><%- l.svg %></div>
+        <div class="info">
+          <% if (h.deviceName(a.asset_code, a.hostname)) { %><div class="host"><%= a.hostname %></div><% } %>
+          <div class="muted"><%= [a.device_type, a.brand].filter(Boolean).join(' · ') %></div>
+          <% if (a.employee_name) { %><div><%= a.employee_name %></div><% } %>
+          <% const room = a.assign_room || a.location_room; if (loc || room) { %><div class="muted"><%= [loc, room].filter(Boolean).join(' · ') %></div><% } %>
+          <div class="code"><%= a.asset_code %></div>
+          <div class="scan">SCAN QR</div>
+        </div>
+      </div>
+    <% } %>
+  </div>
+  <script src="/static/js/print.js?v=<%= typeof assetVersion !== 'undefined' ? assetVersion : '' %>"></script>
+</body>
+</html>

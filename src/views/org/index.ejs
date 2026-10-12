@@ -1,0 +1,144 @@
+<%- include('../partials/top') %>
+<% const manage = can('master.manage'); %>
+<div class="d-flex flex-wrap gap-2 align-items-center justify-content-between mb-3">
+  <div>
+    <h2 class="h5 mb-0">Struktur Departemen, Unit Kerja & Lokasi</h2>
+    <div class="text-muted small">Unit dapat ditambah, diubah, dan dinonaktifkan sesuai struktur perusahaan. Data tidak dihapus agar riwayat aset tetap utuh.</div>
+  </div>
+</div>
+
+<div class="card table-card">
+  <ul class="nav nav-tabs-soft px-3 pt-2" role="tablist">
+    <li class="nav-item"><a class="nav-link <%= tab==='unit'?'active':'' %>" href="/org?tab=unit<%= showInactive?'&inactive=1':'' %>"><i class="bi bi-diagram-3 me-1"></i>Unit Kerja <span class="badge text-bg-light ms-1"><%= units.length %></span></a></li>
+    <li class="nav-item"><a class="nav-link <%= tab==='departemen'?'active':'' %>" href="/org?tab=departemen<%= showInactive?'&inactive=1':'' %>"><i class="bi bi-building me-1"></i>Departemen <span class="badge text-bg-light ms-1"><%= depts.length %></span></a></li>
+    <li class="nav-item"><a class="nav-link <%= tab==='lokasi'?'active':'' %>" href="/org?tab=lokasi<%= showInactive?'&inactive=1':'' %>"><i class="bi bi-geo-alt me-1"></i>Lokasi, Gedung & Ruangan <span class="badge text-bg-light ms-1"><%= locs.length %></span></a></li>
+  </ul>
+  <form class="table-toolbar" method="get">
+    <input type="hidden" name="tab" value="<%= tab %>">
+    <div class="input-group" style="max-width:340px"><span class="input-group-text"><i class="bi bi-search"></i></span><input class="form-control" name="q" value="<%= q %>" placeholder="Cari nama..."></div>
+    <div class="form-check ms-1"><input class="form-check-input" type="checkbox" name="inactive" value="1" id="inact" <%= showInactive?'checked':'' %> data-autosubmit><label class="form-check-label small" for="inact">Tampilkan nonaktif</label></div>
+    <div class="ms-auto">
+      <% if (manage && tab==='unit') { %><button type="button" class="btn btn-primary btn-sm" data-modal-form="#unitModal" data-action="/org/units" data-title="Tambah Unit Kerja"><i class="bi bi-plus-lg me-1"></i>Tambah Unit Kerja</button><% } %>
+      <% if (manage && tab==='departemen') { %><button type="button" class="btn btn-primary btn-sm" data-modal-form="#deptModal" data-action="/org/departments" data-title="Tambah Departemen"><i class="bi bi-plus-lg me-1"></i>Tambah Departemen</button><% } %>
+      <% if (manage && tab==='lokasi') { %><button type="button" class="btn btn-primary btn-sm" data-modal-form="#locModal" data-action="/org/locations" data-title="Tambah Lokasi"><i class="bi bi-plus-lg me-1"></i>Tambah Lokasi</button><% } %>
+    </div>
+  </form>
+
+  <div class="table-responsive">
+  <% if (tab === 'unit') { %>
+    <% if (!units.length) { %><%- include('../partials/empty', { icon: 'bi-diagram-3', heading: 'Belum ada unit kerja', text: 'Tambahkan departemen terlebih dahulu, lalu unit kerja di bawahnya.' }) %><% } else { %>
+    <table class="table table-hover">
+      <thead><tr><th>Departemen</th><th>Unit Kerja</th><th>Lokasi</th><th>PIC Unit</th><th class="text-center">Perangkat</th><th>Status</th><th></th></tr></thead>
+      <tbody>
+      <% for (const u of units) { %>
+        <tr>
+          <td><%= u.department_name %></td>
+          <td class="fw-semibold"><%= u.name %></td>
+          <td class="small"><%= [u.loc_name, u.building, u.room].filter(Boolean).join(' · ') || '-' %></td>
+          <td><%= u.pic_display || '-' %></td>
+          <td class="text-center"><a href="/employees?work_unit_id=<%= u.id %>"><%= u.device_count %></a></td>
+          <td><%- u.is_active ? h.pill('Aktif','success') : h.pill('Nonaktif','dark') %></td>
+          <td class="text-end"><% if (manage) { %><button class="btn btn-light btn-sm" data-modal-form="#unitModal" data-action="/org/units/<%= u.id %>" data-title="Ubah Unit Kerja"
+              data-values="<%= JSON.stringify({ department_id: u.department_id, name: u.name, location_id: u.location_id, pic_employee_id: u.pic_employee_id, pic_name: u.pic_name, is_active: u.is_active }) %>"><i class="bi bi-pencil"></i></button><% } %></td>
+        </tr>
+      <% } %>
+      </tbody>
+    </table><% } %>
+  <% } else if (tab === 'departemen') { %>
+    <% if (!depts.length) { %><%- include('../partials/empty', { icon: 'bi-building', heading: 'Belum ada departemen', text: 'Contoh: IT, HRGA, Finance, Accounting, Purchasing, Warehouse, Produksi, QC, Regulatory, Marketing.' }) %><% } else { %>
+    <table class="table table-hover">
+      <thead><tr><th>Kode</th><th>Nama Departemen</th><th>Keterangan</th><th class="text-center">Unit</th><th class="text-center">Karyawan</th><th>Status</th><th></th></tr></thead>
+      <tbody>
+      <% for (const d of depts) { %>
+        <tr>
+          <td><% if (d.code) { %><span class="code-chip"><%= d.code %></span><% } else { %>-<% } %></td>
+          <td class="fw-semibold"><%= d.name %></td>
+          <td class="small text-muted"><%= d.description || '-' %></td>
+          <td class="text-center"><%= d.unit_count %></td>
+          <td class="text-center"><%= d.emp_count %></td>
+          <td><%- d.is_active ? h.pill('Aktif','success') : h.pill('Nonaktif','dark') %></td>
+          <td class="text-end"><% if (manage) { %><button class="btn btn-light btn-sm" data-modal-form="#deptModal" data-action="/org/departments/<%= d.id %>" data-title="Ubah Departemen"
+              data-values="<%= JSON.stringify({ code: d.code, name: d.name, description: d.description, is_active: d.is_active }) %>"><i class="bi bi-pencil"></i></button><% } %></td>
+        </tr>
+      <% } %>
+      </tbody>
+    </table><% } %>
+  <% } else { %>
+    <% if (!locs.length) { %><%- include('../partials/empty', { icon: 'bi-geo-alt', heading: 'Belum ada lokasi', text: 'Tambahkan lokasi/site, gedung, lantai, dan ruangan.' }) %><% } else { %>
+    <table class="table table-hover">
+      <thead><tr><th>Lokasi / Site</th><th>Gedung</th><th>Lantai</th><th>Ruangan</th><th class="text-center">Aset</th><th>Status</th><th></th></tr></thead>
+      <tbody>
+      <% for (const l of locs) { %>
+        <tr>
+          <td class="fw-semibold"><%= l.name %></td><td><%= l.building || '-' %></td><td><%= l.floor || '-' %></td><td><%= l.room || '-' %></td>
+          <td class="text-center"><a href="/assets?location_id=<%= l.id %>"><%= l.asset_count %></a></td>
+          <td><%- l.is_active ? h.pill('Aktif','success') : h.pill('Nonaktif','dark') %></td>
+          <td class="text-end"><% if (manage) { %><button class="btn btn-light btn-sm" data-modal-form="#locModal" data-action="/org/locations/<%= l.id %>" data-title="Ubah Lokasi"
+              data-values="<%= JSON.stringify({ name: l.name, building: l.building, floor: l.floor, room: l.room, is_active: l.is_active }) %>"><i class="bi bi-pencil"></i></button><% } %></td>
+        </tr>
+      <% } %>
+      </tbody>
+    </table><% } %>
+  <% } %>
+  </div>
+</div>
+
+<% if (manage) { %>
+<div class="modal fade" id="unitModal" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+  <form method="post" data-ajax data-reload novalidate>
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div class="modal-header"><h5 class="modal-title">Unit Kerja</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <div class="alert alert-danger d-none" data-form-alert></div>
+      <div class="mb-3"><label class="form-label">Departemen<span class="req">*</span></label>
+        <select class="form-select" name="department_id" required><option value="">— Pilih departemen —</option><% for (const d of departments.filter(x => x.is_active)) { %><option value="<%= d.id %>"><%= d.name %></option><% } %></select></div>
+      <div class="mb-3"><label class="form-label">Nama unit kerja<span class="req">*</span></label><input class="form-control" name="name" maxlength="120" required></div>
+      <div class="mb-3"><label class="form-label">Lokasi</label>
+        <select class="form-select" name="location_id"><option value="">— Tidak ditentukan —</option><% for (const l of locations.filter(x => x.is_active)) { %><option value="<%= l.id %>"><%= locText(l) %></option><% } %></select></div>
+      <div class="row g-2">
+        <div class="col-md-6"><label class="form-label">PIC unit (karyawan)</label>
+          <select class="form-select" name="pic_employee_id"><option value="">— Pilih —</option><% for (const e of employees) { %><option value="<%= e.id %>"><%= e.full_name %> (<%= e.nik %>)</option><% } %></select></div>
+        <div class="col-md-6"><label class="form-label">atau nama PIC</label><input class="form-control" name="pic_name" maxlength="150"></div>
+      </div>
+      <div class="form-check form-switch mt-3"><input type="hidden" name="is_active" value="0"><input class="form-check-input" type="checkbox" name="is_active" value="1" id="unitActive" checked><label class="form-check-label" for="unitActive">Aktif</label></div>
+    </div>
+    <div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Batal</button><button class="btn btn-primary" type="submit"><i class="bi bi-check2 me-1"></i>Simpan</button></div>
+  </form>
+</div></div></div>
+
+<div class="modal fade" id="deptModal" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+  <form method="post" data-ajax data-reload novalidate>
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div class="modal-header"><h5 class="modal-title">Departemen</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <div class="alert alert-danger d-none" data-form-alert></div>
+      <div class="row g-2">
+        <div class="col-4"><label class="form-label">Kode</label><input class="form-control text-uppercase" name="code" maxlength="30" placeholder="IT"></div>
+        <div class="col-8"><label class="form-label">Nama departemen<span class="req">*</span></label><input class="form-control" name="name" maxlength="120" required></div>
+      </div>
+      <div class="mt-3"><label class="form-label">Keterangan</label><input class="form-control" name="description" maxlength="255"></div>
+      <div class="form-check form-switch mt-3"><input type="hidden" name="is_active" value="0"><input class="form-check-input" type="checkbox" name="is_active" value="1" id="deptActive" checked><label class="form-check-label" for="deptActive">Aktif</label></div>
+    </div>
+    <div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Batal</button><button class="btn btn-primary" type="submit"><i class="bi bi-check2 me-1"></i>Simpan</button></div>
+  </form>
+</div></div></div>
+
+<div class="modal fade" id="locModal" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+  <form method="post" data-ajax data-reload novalidate>
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div class="modal-header"><h5 class="modal-title">Lokasi</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <div class="alert alert-danger d-none" data-form-alert></div>
+      <div class="mb-3"><label class="form-label">Nama lokasi / site<span class="req">*</span></label><input class="form-control" name="name" maxlength="120" placeholder="Kantor Pusat" required></div>
+      <div class="row g-2">
+        <div class="col-md-5"><label class="form-label">Gedung</label><input class="form-control" name="building" maxlength="120"></div>
+        <div class="col-md-3"><label class="form-label">Lantai</label><input class="form-control" name="floor" maxlength="30"></div>
+        <div class="col-md-4"><label class="form-label">Ruangan</label><input class="form-control" name="room" maxlength="120"></div>
+      </div>
+      <div class="form-check form-switch mt-3"><input type="hidden" name="is_active" value="0"><input class="form-check-input" type="checkbox" name="is_active" value="1" id="locActive" checked><label class="form-check-label" for="locActive">Aktif</label></div>
+    </div>
+    <div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Batal</button><button class="btn btn-primary" type="submit"><i class="bi bi-check2 me-1"></i>Simpan</button></div>
+  </form>
+</div></div></div>
+<% } %>
+<%- include('../partials/bottom') %>

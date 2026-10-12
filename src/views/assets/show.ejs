@@ -1,0 +1,276 @@
+<%- include('../partials/top') %>
+<% const a = asset; const primary = assignHist.find(x => x.is_current && x.assignment_role === 'PENGGUNA_UTAMA'); const pic = assignHist.find(x => x.is_current && x.assignment_role === 'PIC_UNIT'); %>
+<div class="card mb-3">
+  <div class="card-body d-flex flex-wrap gap-3 align-items-center">
+    <% if (a.photo_path) { %><img src="/files/asset-photo/<%= a.id %>" alt="Foto" style="width:84px;height:84px;object-fit:cover;border-radius:14px;border:1px solid var(--line)">
+    <% } else { %><div class="d-grid rounded-4" style="width:84px;height:84px;place-items:center;background:var(--purple-100);color:var(--purple-600)"><i class="bi <%= a.device_type==='Laptop'?'bi-laptop':'bi-pc-display' %> fs-2"></i></div><% } %>
+    <div class="flex-grow-1 min-w-0">
+      <div class="d-flex flex-wrap align-items-center gap-2 mb-1"><span class="code-chip fs-6"><%= a.asset_code %></span><%- h.assetStatusBadge(a.asset_status) %><%- h.statusBadge(a.current_health_status) %></div>
+      <h2 class="h5 mb-1"><%= h.deviceName(a.asset_code, a.hostname, a.asset_code) %> <span class="text-muted fw-normal small">· <%= [a.brand, a.model].filter(Boolean).join(' ') || a.device_type %></span></h2>
+      <div class="small text-muted d-flex flex-wrap gap-3">
+        <span><i class="bi bi-person me-1"></i><%= a.employee_name || 'Belum ada pengguna' %></span>
+        <span><i class="bi bi-diagram-3 me-1"></i><%= [a.department_name, a.work_unit_name].filter(Boolean).join(' › ') || '-' %></span>
+        <span><i class="bi bi-geo-alt me-1"></i><%= [a.location_name, a.location_building, a.location_room].filter(Boolean).join(' · ') || '-' %></span>
+        <span><i class="bi bi-calendar-check me-1"></i>Terakhir: <%= h.fmtDate(a.last_maintenance_date) %></span>
+        <span class="<%= a.next_maintenance_date && a.next_maintenance_date < h.today() ? 'text-danger fw-semibold' : '' %>"><i class="bi bi-calendar-event me-1"></i>Berikutnya: <%= h.fmtDate(a.next_maintenance_date) %></span>
+      </div>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+      <% if (can('maintenance.create')) { %><a href="/maintenance/new?asset_id=<%= a.id %>" class="btn btn-primary"><i class="bi bi-clipboard2-plus me-1"></i>Maintenance</a><% } %>
+      <a href="/assets/labels?ids=<%= a.id %>" target="_blank" class="btn btn-light" title="Cetak label QR"><i class="bi bi-qr-code"></i></a>
+      <% if (canManage) { %><a href="/assets/<%= a.id %>/edit" class="btn btn-light"><i class="bi bi-pencil me-1"></i>Ubah</a><% } %>
+      <% if (can('asset.delete')) { %>
+        <form method="post" action="/assets/<%= a.id %>/delete" data-ajax data-confirm="Aset <%= a.asset_code %> akan dihapus dari daftar aktif. Riwayat maintenance tetap tersimpan." data-confirm-title="Hapus aset?" data-confirm-ok="Ya, hapus">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="btn btn-outline-danger" type="submit"><i class="bi bi-trash"></i></button></form>
+      <% } %>
+    </div>
+  </div>
+</div>
+
+<% if (alerts.length) { %>
+  <div class="alert alert-warning"><div class="fw-semibold mb-1"><i class="bi bi-graph-down-arrow me-1"></i>Penurunan / kenaikan signifikan dibanding pemeriksaan sebelumnya</div>
+    <ul class="mb-0 small"><% for (const al of alerts) { %><li><%= al.text %></li><% } %></ul></div>
+<% } %>
+
+<div class="card">
+  <ul class="nav nav-tabs-soft px-2 pt-1" role="tablist">
+    <% const tabs = [['info','bi-info-circle','Informasi Perangkat'],['user','bi-person-workspace','Pengguna & Unit'],['maint','bi-clipboard2-check','Hasil Maintenance', records.length],['temp','bi-thermometer-half','Riwayat Suhu'],['health','bi-device-ssd','Health Storage'],['battery','bi-battery-half','Baterai'],['repair','bi-wrench-adjustable','Perbaikan & Komponen', repairs.length],['move','bi-arrow-left-right','Perpindahan', movements.length],['doc','bi-images','Dokumentasi', attachments.length],['sched','bi-calendar2-week','Jadwal Berikutnya']]; %>
+    <% tabs.forEach(([k, ic, lb, n], i) => { %>
+      <li class="nav-item" role="presentation"><button class="nav-link <%= i===0?'active':'' %>" data-bs-toggle="tab" data-bs-target="#tab-<%= k %>" type="button" role="tab"><i class="bi <%= ic %> me-1"></i><%= lb %><% if (n) { %> <span class="badge text-bg-light"><%= n %></span><% } %></button></li>
+    <% }) %>
+  </ul>
+  <div class="tab-content card-body">
+    <!-- 1. Informasi perangkat -->
+    <div class="tab-pane fade show active" id="tab-info" role="tabpanel">
+      <div class="row g-4">
+        <div class="col-lg-6"><dl class="kv">
+          <dt>Kode aset</dt><dd class="mono"><%= a.asset_code %></dd>
+          <dt>No. inventaris</dt><dd><%= a.inventory_number || '-' %></dd>
+          <% if (h.deviceName(a.asset_code, a.hostname)) { %><dt>Nama perangkat</dt><dd><%= a.hostname %></dd><% } %>
+          <dt>Jenis perangkat</dt><dd><%= a.device_type === 'Lainnya' ? `Lainnya (${a.device_type_other || '-'})` : a.device_type %></dd>
+          <dt>Brand / model</dt><dd><%= [a.brand, a.model].filter(Boolean).join(' ') || '-' %></dd>
+          <dt>Serial number</dt><dd class="mono"><%= a.serial_number || '-' %></dd>
+          <dt>Processor</dt><dd><%= a.processor || '-' %></dd>
+          <dt>RAM</dt><dd><%= a.ram_gb !== null ? `${h.fmtNum(a.ram_gb)} GB` : '-' %></dd>
+          <dt>Storage</dt><dd><%= a.storage_summary || '-' %></dd>
+          <dt>VGA / GPU</dt><dd><%= a.gpu || '-' %></dd>
+        </dl></div>
+        <div class="col-lg-6"><dl class="kv">
+          <dt>Sistem operasi</dt><dd><%= a.operating_system || '-' %></dd>
+          <dt>IP address</dt><dd class="mono"><%= a.ip_address || '-' %></dd>
+          <dt>MAC address</dt><dd class="mono"><%= a.mac_address || '-' %></dd>
+          <dt>Tanggal pembelian</dt><dd><%= h.fmtDate(a.purchase_date) %></dd>
+          <dt>Garansi</dt><dd><%= a.warranty_status %><%= a.warranty_until ? ` (s.d. ${h.fmtDate(a.warranty_until)})` : '' %></dd>
+          <dt>Kondisi perangkat</dt><dd><%= a.physical_condition || 'Belum dinilai' %></dd>
+          <dt>Baterai</dt><dd><%= a.has_battery ? 'Ada (wajib diperiksa)' : 'Tidak ada / tidak berlaku' %></dd>
+          <dt>Interval maintenance</dt><dd><%= interval.days %> hari (<%= interval.type %>)</dd>
+          <dt>Catatan</dt><dd class="fw-normal" style="white-space:pre-line"><%= a.notes || '-' %></dd>
+        </dl></div>
+      </div>
+      <hr>
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h6 class="mb-0">Storage terpasang</h6>
+        <% if (canManage) { %><button class="btn btn-soft btn-sm" data-modal-form="#storageModal" data-action="/assets/<%= a.id %>/storages" data-title="Tambah Storage"><i class="bi bi-plus-lg me-1"></i>Tambah storage</button><% } %>
+      </div>
+      <% if (!storages.length) { %><div class="text-muted small">Belum ada storage terdaftar. Storage juga dapat ditambahkan langsung dari form maintenance.</div><% } else { %>
+      <div class="table-responsive"><table class="table">
+        <thead><tr><th>Jenis</th><th>Antarmuka</th><th>Merek / Model</th><th>Serial</th><th>Kapasitas</th><th>Status</th><th></th></tr></thead>
+        <tbody><% for (const s of storages) { %><tr class="<%= s.is_active ? '' : 'text-muted' %>">
+          <td><%- h.pill(s.storage_type, s.storage_type==='SSD'?'success':'info') %></td><td><%= s.interface || '-' %></td><td><%= [s.brand, s.model].filter(Boolean).join(' ') || '-' %></td>
+          <td class="mono small"><%= s.serial_number || '-' %></td><td><%= h.fmtCapacity(s.capacity_gb) %></td>
+          <td><%- s.is_active ? h.pill('Terpasang','success') : h.pill(`Dilepas ${h.fmtDate(s.removed_at)}`,'dark') %></td>
+          <td class="text-end text-nowrap"><% if (canManage && s.is_active) { %>
+            <button class="btn btn-light btn-sm" data-modal-form="#storageModal" data-action="/assets/<%= a.id %>/storages/<%= s.id %>" data-title="Ubah Storage" data-values="<%= JSON.stringify({ storage_type: s.storage_type, interface: s.interface, brand: s.brand, model: s.model, serial_number: s.serial_number, capacity_gb: s.capacity_gb, installed_at: s.installed_at, notes: s.notes }) %>"><i class="bi bi-pencil"></i></button>
+            <form class="d-inline" method="post" action="/assets/<%= a.id %>/storages/<%= s.id %>" data-ajax data-reload data-confirm="Tandai storage ini sudah dilepas dari perangkat? Riwayat pembacaannya tetap tersimpan." data-confirm-ok="Ya, lepas" data-confirm-tone="warning">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="action" value="remove"><button class="btn btn-light btn-sm" title="Lepas"><i class="bi bi-box-arrow-up-right"></i></button></form>
+          <% } %></td></tr><% } %></tbody>
+      </table></div><% } %>
+    </div>
+
+    <!-- 2. Pengguna & unit kerja -->
+    <div class="tab-pane fade" id="tab-user" role="tabpanel">
+      <div class="row g-3 mb-3">
+        <% for (const [role, cur, label] of [['PENGGUNA_UTAMA', primary, 'Pengguna utama'], ['PIC_UNIT', pic, 'PIC unit kerja']]) { %>
+        <div class="col-md-6"><div class="border rounded-4 p-3 h-100">
+          <div class="d-flex justify-content-between align-items-start mb-2"><div class="fw-bold"><%= label %></div>
+            <% if (canAssign) { %><div class="d-flex gap-1">
+              <button class="btn btn-soft btn-sm" data-modal-form="#assignModal" data-action="/assets/<%= a.id %>/assign" data-title="<%= cur ? 'Ganti' : 'Tetapkan' %> <%= label %>" data-values="<%= JSON.stringify({ assignment_role: role, start_date: h.today(), status: 'Aktif' }) %>"><i class="bi bi-person-plus me-1"></i><%= cur ? 'Ganti' : 'Tetapkan' %></button>
+              <% if (cur) { %><form method="post" action="/assets/<%= a.id %>/release" data-ajax data-reload data-confirm="Lepaskan <%= label.toLowerCase() %> dari perangkat ini? Riwayat tetap tersimpan." data-confirm-tone="warning" data-confirm-ok="Ya, lepaskan"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="assignment_role" value="<%= role %>"><button class="btn btn-light btn-sm"><i class="bi bi-person-dash"></i></button></form><% } %>
+            </div><% } %></div>
+          <% if (cur) { %><dl class="kv mb-0">
+            <dt>Nama</dt><dd><%= cur.emp_name %></dd><dt>NIK</dt><dd><%= cur.nik || '-' %></dd><dt>Jabatan</dt><dd><%= cur.position || '-' %></dd>
+            <dt>Departemen</dt><dd><%= cur.department_name_snapshot || '-' %></dd><dt>Unit kerja</dt><dd><%= cur.work_unit_name_snapshot || '-' %></dd>
+            <dt>Lokasi / ruangan</dt><dd><%= [cur.location_text_snapshot, cur.room].filter(Boolean).join(' · R. ') || '-' %></dd>
+            <dt>Email / ext.</dt><dd><%= [cur.email, cur.phone_ext].filter(Boolean).join(' · ') || '-' %></dd>
+            <dt>Mulai digunakan</dt><dd><%= h.fmtDate(cur.start_date) %> · <%= cur.status %></dd>
+          </dl><% } else { %><div class="text-muted small">Belum ditetapkan.</div><% } %>
+        </div></div>
+        <% } %>
+      </div>
+      <h6>Riwayat penggunaan</h6>
+      <% if (!assignHist.length) { %><div class="text-muted small">Belum ada riwayat penggunaan.</div><% } else { %>
+      <div class="table-responsive"><table class="table">
+        <thead><tr><th>Peran</th><th>Pengguna</th><th>Departemen / Unit (saat itu)</th><th>Lokasi</th><th>Periode</th><th>Status</th><th>Alasan</th></tr></thead>
+        <tbody><% for (const x of assignHist) { %><tr>
+          <td class="small"><%= x.assignment_role === 'PIC_UNIT' ? 'PIC unit' : 'Pengguna utama' %></td><td><%= x.emp_name || '-' %></td>
+          <td class="small"><%= [x.department_name_snapshot, x.work_unit_name_snapshot].filter(Boolean).join(' › ') || '-' %></td>
+          <td class="small"><%= [x.location_text_snapshot, x.room].filter(Boolean).join(' · R. ') || '-' %></td>
+          <td class="small text-nowrap"><%= h.fmtDate(x.start_date) %> – <%= x.end_date ? h.fmtDate(x.end_date) : 'sekarang' %></td>
+          <td><%- x.is_current ? h.pill(x.status, 'success') : h.pill(x.status, 'secondary') %></td><td class="small text-muted"><%= x.reason || '' %></td>
+        </tr><% } %></tbody></table></div><% } %>
+    </div>
+
+    <!-- 3. Hasil maintenance -->
+    <div class="tab-pane fade" id="tab-maint" role="tabpanel">
+      <% if (!records.length) { %><%- include('../partials/empty', { icon: 'bi-clipboard2', heading: 'Belum ada maintenance', text: 'Perangkat ini belum pernah menjalani preventive maintenance.', action: can('maintenance.create') ? { href: `/maintenance/new?asset_id=${a.id}`, label: 'Mulai maintenance' } : null }) %><% } else { %>
+      <div class="table-responsive"><table class="table table-hover">
+        <thead><tr><th>No.</th><th>Tanggal</th><th>Teknisi</th><th>Pengguna (saat itu)</th><th>Status</th><th>Kondisi akhir</th><th>Evaluasi</th><th>Persetujuan</th></tr></thead>
+        <tbody><% for (const r of records) { %><tr>
+          <td><a class="mono" href="/maintenance/<%= r.id %>"><%= r.maintenance_no %></a></td><td class="text-nowrap"><%= h.fmtDate(r.maintenance_date) %></td><td><%= r.technician || '-' %></td>
+          <td class="small"><%= r.employee_name_snapshot || '-' %><div class="text-muted"><%= r.department_snapshot || '' %></div></td>
+          <td><%- h.recordBadge(r.status) %></td><td><%- h.finalBadge(r.final_condition) %></td><td><%- h.statusBadge(r.evaluated_status) %></td><td><%- h.approvalBadge(r.approval_status) %></td>
+        </tr><% } %></tbody></table></div><% } %>
+    </div>
+
+    <!-- 4. Riwayat suhu -->
+    <div class="tab-pane fade" id="tab-temp" role="tabpanel">
+      <% if (!chartTemp.data.datasets.length) { %><%- include('../partials/empty', { icon: 'bi-thermometer', heading: 'Belum ada data suhu', text: 'Grafik muncul setelah ada maintenance berstatus Selesai dengan suhu CPU/SSD/HDD yang diperiksa.' }) %><% } else { %>
+        <div class="chart-box"><canvas data-chart="cTemp" aria-label="Grafik riwayat suhu"></canvas></div>
+        <script type="application/json" id="cTemp"><%- JSON.stringify(chartTemp).replace(/</g, '\\u003c') %></script>
+        <p class="small text-muted mt-2 mb-0">Titik kosong berarti parameter tidak diperiksa pada tanggal tersebut (bukan 0°C).</p>
+      <% } %>
+    </div>
+
+    <!-- 5. Health storage -->
+    <div class="tab-pane fade" id="tab-health" role="tabpanel">
+      <% if (!chartHealth.data.datasets.length) { %><%- include('../partials/empty', { icon: 'bi-device-ssd', heading: 'Belum ada data health storage', text: 'Grafik muncul setelah ada pembacaan health SSD/HDD pada maintenance yang Selesai.' }) %><% } else { %>
+        <div class="chart-box"><canvas data-chart="cHealth" aria-label="Grafik health storage"></canvas></div>
+        <script type="application/json" id="cHealth"><%- JSON.stringify(chartHealth).replace(/</g, '\\u003c') %></script>
+      <% } %>
+      <% if (storageReadings.length) { %>
+      <div class="table-responsive mt-3"><table class="table">
+        <thead><tr><th>Tanggal</th><th>No.</th><th>Storage</th><th>Suhu</th><th>Health</th><th>Terpakai</th><th>SMART</th><th>Sumber</th><th>Evaluasi</th></tr></thead>
+        <tbody><% for (const s of storageReadings.slice().reverse()) { %><tr>
+          <td class="text-nowrap"><%= h.fmtDate(s.maintenance_date) %></td><td><a class="mono small" href="/maintenance/<%= s.maintenance_record_id %>"><%= s.maintenance_no %></a></td>
+          <td class="small"><%= s.storage_type %> <%= [s.interface, s.brand, s.model].filter(Boolean).join(' ') %></td>
+          <td><%= h.show(s.temperature_c, '°C') %></td>
+          <td class="<%= s.drop ? 'text-danger fw-bold' : '' %>"><%= h.show(s.health_percent, '%') %><% if (s.drop) { %> <i class="bi bi-arrow-down-circle-fill" title="Turun signifikan"></i><% } %></td>
+          <td><%= h.show(s.used_percent, '%', '-') %></td><td><%= s.smart_status || 'Tidak diperiksa' %></td><td class="small"><%= s.data_source %></td><td><%- h.statusBadge(s.evaluated_level || 'TIDAK_TERSEDIA') %></td>
+        </tr><% } %></tbody></table></div><% } %>
+    </div>
+
+    <!-- 6. Baterai -->
+    <div class="tab-pane fade" id="tab-battery" role="tabpanel">
+      <% if (!a.has_battery && !batteryReadings.length) { %><%- include('../partials/empty', { icon: 'bi-plug', heading: 'Tidak Berlaku', text: 'Perangkat ini tidak memiliki baterai.' }) %>
+      <% } else if (!batteryReadings.length) { %><%- include('../partials/empty', { icon: 'bi-battery', heading: 'Belum ada data baterai', text: 'Data muncul setelah pemeriksaan baterai pada maintenance yang Selesai.' }) %>
+      <% } else { %>
+        <% if (batteryReadings.some(b => b.health_percent !== null)) { %><div class="chart-box sm"><canvas data-chart="cBat"></canvas></div>
+        <script type="application/json" id="cBat"><%- JSON.stringify(chartBattery).replace(/</g, '\\u003c') %></script><% } %>
+        <div class="table-responsive mt-3"><table class="table">
+          <thead><tr><th>Tanggal</th><th>No.</th><th>Health</th><th>Design cap.</th><th>Full charge cap.</th><th>Cycle</th><th>Status</th><th>Catatan</th></tr></thead>
+          <tbody><% for (const b of batteryReadings.slice().reverse()) { %><tr>
+            <td><%= h.fmtDate(b.maintenance_date) %></td><td><a class="mono small" href="/maintenance/<%= b.maintenance_record_id %>"><%= b.maintenance_no %></a></td>
+            <td class="<%= b.drop ? 'text-danger fw-bold' : '' %>"><%= h.show(b.health_percent, '%') %></td><td><%= h.show(b.design_capacity_mwh, ' mWh', '-') %></td><td><%= h.show(b.full_charge_capacity_mwh, ' mWh', '-') %></td>
+            <td><%= h.show(b.cycle_count, '', '-') %></td><td><%= b.battery_status || '-' %></td><td class="small"><%= b.notes || '' %></td>
+          </tr><% } %></tbody></table></div>
+      <% } %>
+    </div>
+
+    <!-- 7. Perbaikan & komponen -->
+    <div class="tab-pane fade" id="tab-repair" role="tabpanel">
+      <div class="d-flex justify-content-between mb-2"><h6 class="mb-0">Perbaikan & penggantian komponen</h6>
+        <% if (can('followup.manage')) { %><button class="btn btn-soft btn-sm" data-modal-form="#repairModal" data-action="/follow-ups/repairs" data-title="Catat Perbaikan" data-values="<%= JSON.stringify({ asset_id: a.id, repair_date: h.today() }) %>"><i class="bi bi-plus-lg me-1"></i>Catat perbaikan</button><% } %></div>
+      <% if (!repairs.length) { %><div class="text-muted small">Belum ada catatan perbaikan atau penggantian komponen.</div><% } else { %>
+      <div class="table-responsive"><table class="table">
+        <thead><tr><th>Tanggal</th><th>Jenis</th><th>Komponen</th><th>Lama → Baru</th><th>Vendor / Biaya</th><th>Teknisi</th><th>Ref.</th></tr></thead>
+        <tbody><% for (const r of repairs) { %><tr>
+          <td class="text-nowrap"><%= h.fmtDate(r.repair_date) %></td><td><%= r.repair_type %></td><td class="fw-semibold"><%= r.component %><div class="small text-muted fw-normal"><%= r.description || '' %></div></td>
+          <td class="small"><%= r.old_part || '-' %> → <%= r.new_part || '-' %><%= r.new_part_serial ? ` (SN ${r.new_part_serial})` : '' %></td>
+          <td class="small"><%= r.vendor || '-' %><%= r.cost !== null ? ` · Rp ${Number(r.cost).toLocaleString('id-ID')}` : '' %></td><td class="small"><%= r.technician || '-' %></td>
+          <td class="small"><% if (r.maintenance_no) { %><a href="/maintenance/<%= r.maintenance_record_id %>" class="mono"><%= r.maintenance_no %></a><% } %></td>
+        </tr><% } %></tbody></table></div><% } %>
+      <h6 class="mt-4">Tindak lanjut</h6>
+      <% if (!followUps.length) { %><div class="text-muted small">Tidak ada tindak lanjut.</div><% } else { %>
+      <div class="table-responsive"><table class="table"><thead><tr><th>Judul</th><th>Prioritas</th><th>Status</th><th>PIC</th><th>Target</th></tr></thead>
+        <tbody><% for (const f of followUps) { %><tr><td><a href="/follow-ups?asset_id=<%= a.id %>"><%= f.title %></a></td><td><%- h.priorityBadge(f.priority) %></td><td><%- h.followBadge(f.status) %></td><td class="small"><%= f.pic || f.pic_name || '-' %></td><td class="small"><%= h.fmtDate(f.target_date) %></td></tr><% } %></tbody></table></div><% } %>
+    </div>
+
+    <!-- 8. Perpindahan -->
+    <div class="tab-pane fade" id="tab-move" role="tabpanel">
+      <% if (!movements.length) { %><div class="text-muted small">Belum ada perpindahan lokasi, pengguna, atau status.</div><% } else { %>
+      <div class="timeline"><% for (const m of movements) { %>
+        <div class="timeline-item"><div class="small text-muted"><%= h.fmtDateTime(m.moved_at) %> · <%= m.by_name || 'Sistem' %></div>
+          <div><span class="badge text-bg-light me-1"><%= { PENGGUNA: 'Pengguna', DEPARTEMEN: 'Departemen', UNIT_KERJA: 'Unit kerja', LOKASI: 'Lokasi', STATUS: 'Status aset' }[m.movement_type] %></span><span class="text-muted"><%= m.from_value %></span> <i class="bi bi-arrow-right mx-1"></i> <strong><%= m.to_value %></strong></div>
+          <% if (m.reason) { %><div class="small text-muted">Alasan: <%= m.reason %></div><% } %></div>
+      <% } %></div><% } %>
+    </div>
+
+    <!-- 9. Dokumentasi -->
+    <div class="tab-pane fade" id="tab-doc" role="tabpanel">
+      <% if (!attachments.length) { %><%- include('../partials/empty', { icon: 'bi-images', heading: 'Belum ada dokumentasi', text: 'Foto & dokumen diunggah melalui form maintenance.' }) %><% } else { %>
+      <div class="row g-3"><% for (const f of attachments) { %>
+        <div class="col-6 col-md-4 col-xl-3"><div class="file-tile">
+          <% if (f.mime_type.startsWith('image/')) { %><a href="/files/<%= f.id %>" target="_blank" rel="noopener"><img class="thumb" src="/files/<%= f.id %>" alt="<%= f.original_name %>" loading="lazy"></a>
+          <% } else { %><a href="/files/<%= f.id %>" target="_blank" rel="noopener" class="thumb d-grid text-danger" style="place-items:center"><i class="bi bi-file-earmark-pdf fs-1"></i></a><% } %>
+          <div class="small mt-2 text-truncate fw-semibold" title="<%= f.original_name %>"><%= f.original_name %></div>
+          <div class="small text-muted"><%= ({ DOKUMENTASI:'Dokumentasi', FOTO_SEBELUM:'Foto sebelum', FOTO_SESUDAH:'Foto sesudah', SCREENSHOT_STORAGE:'Screenshot storage', DOKUMEN_PDF:'Dokumen PDF', BUKTI_SPAREPART:'Bukti spare part' })[f.category] %> · <a href="/maintenance/<%= f.maintenance_record_id %>"><%= f.maintenance_no %></a></div>
+        </div></div>
+      <% } %></div><% } %>
+    </div>
+
+    <!-- 10. Jadwal berikutnya -->
+    <div class="tab-pane fade" id="tab-sched" role="tabpanel">
+      <div class="row g-3 mb-3">
+        <div class="col-md-4"><div class="border rounded-4 p-3 h-100"><div class="small text-muted">Jadwal tercatat berikutnya</div><div class="fs-5 fw-bold"><%= h.fmtDate(a.next_maintenance_date) %></div>
+          <% if (a.next_maintenance_date) { const d = h.diffDays(a.next_maintenance_date, h.today()); %><div class="small <%= d < 0 ? 'text-danger' : 'text-muted' %>"><%= d < 0 ? `Terlambat ${-d} hari` : d === 0 ? 'Hari ini' : `${d} hari lagi` %></div><% } %></div></div>
+        <div class="col-md-4"><div class="border rounded-4 p-3 h-100"><div class="small text-muted">Rekomendasi sistem</div>
+          <% if (recommended) { %><div class="fs-5 fw-bold"><%= h.fmtDate(recommended.date) %></div><div class="small text-muted">Interval <%= recommended.days %> hari dari maintenance terakhir<%= recommended.days < recommended.base.days ? ' (dipersingkat karena kondisi perangkat)' : '' %>.</div>
+          <% } else { %><div class="fw-semibold">Segera lakukan maintenance pertama</div><div class="small text-muted">Belum ada riwayat maintenance selesai.</div><% } %></div></div>
+        <div class="col-md-4"><div class="border rounded-4 p-3 h-100"><div class="small text-muted">Kebijakan interval</div><div class="fs-5 fw-bold"><%= interval.days %> hari</div><div class="small text-muted"><%= interval.type %></div></div></div>
+      </div>
+      <div class="d-flex justify-content-between mb-2"><h6 class="mb-0">Daftar jadwal</h6><% if (can('schedule.manage')) { %><a class="btn btn-soft btn-sm" href="/schedules?asset_id=<%= a.id %>&new=1"><i class="bi bi-calendar-plus me-1"></i>Buat jadwal</a><% } %></div>
+      <% if (!schedules.length) { %><div class="text-muted small">Belum ada jadwal.</div><% } else { %>
+      <div class="table-responsive"><table class="table"><thead><tr><th>Tanggal</th><th>Teknisi</th><th>Status</th><th>Sumber</th><th>Catatan</th></tr></thead>
+        <tbody><% for (const s of schedules) { %><tr><td><%= h.fmtDate(s.scheduled_date) %></td><td><%= s.technician || 'Belum ditugaskan' %></td><td><%- h.recordBadge(s.status) %></td><td class="small"><%= s.source === 'OTOMATIS' ? 'Otomatis' : 'Manual' %></td><td class="small text-muted"><%= s.notes || '' %></td></tr><% } %></tbody></table></div><% } %>
+    </div>
+  </div>
+</div>
+
+<!-- Modal storage -->
+<div class="modal fade" id="storageModal" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+  <form method="post" data-ajax data-reload novalidate><input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div class="modal-header"><h5 class="modal-title">Storage</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body row g-2"><div class="alert alert-danger d-none" data-form-alert></div>
+      <div class="col-6"><label class="form-label">Jenis<span class="req">*</span></label><select class="form-select" name="storage_type" required><option>SSD</option><option>HDD</option></select></div>
+      <div class="col-6"><label class="form-label">Antarmuka</label><select class="form-select" name="interface"><option value="">-</option><% for (const i of A.INTERFACES) { %><option><%= i %></option><% } %></select></div>
+      <div class="col-6"><label class="form-label">Merek</label><input class="form-control" name="brand" maxlength="80"></div>
+      <div class="col-6"><label class="form-label">Model</label><input class="form-control" name="model" maxlength="120"></div>
+      <div class="col-6"><label class="form-label">Serial number</label><input class="form-control mono" name="serial_number" maxlength="100"></div>
+      <div class="col-6"><label class="form-label">Kapasitas</label><div class="input-group"><input class="form-control" name="capacity_gb" inputmode="decimal"><span class="input-group-text">GB</span></div></div>
+      <div class="col-6"><label class="form-label">Tanggal pasang</label><input type="date" class="form-control" name="installed_at"></div>
+      <div class="col-6"><label class="form-label">Catatan</label><input class="form-control" name="notes" maxlength="255"></div>
+    </div>
+    <div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Batal</button><button class="btn btn-primary">Simpan</button></div>
+  </form></div></div></div>
+
+<!-- Modal penugasan -->
+<div class="modal fade" id="assignModal" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-dialog-centered modal-lg"><div class="modal-content">
+  <form method="post" data-ajax data-reload novalidate><input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div class="modal-header"><h5 class="modal-title">Penugasan</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body row g-3"><div class="alert alert-danger d-none" data-form-alert></div>
+      <input type="hidden" name="assignment_role" data-fill>
+      <div class="col-md-8"><label class="form-label">Karyawan<span class="req">*</span></label><select name="employee_id" data-tom required><option value="">— Cari nama / NIK —</option><% for (const e of employees) { %><option value="<%= e.id %>"><%= e.full_name %> (<%= e.nik %>)</option><% } %></select>
+        <div class="form-text">Departemen, unit, dan lokasi otomatis mengikuti data karyawan bila tidak dipilih.</div></div>
+      <div class="col-md-4"><label class="form-label">Tanggal mulai penggunaan<span class="req">*</span></label><input type="date" class="form-control" name="start_date" max="<%= h.today() %>" required></div>
+      <div class="col-md-6"><label class="form-label">Unit kerja (opsional)</label><select class="form-select" name="work_unit_id" data-tom><option value="">Ikuti data karyawan</option><% for (const u of units) { %><option value="<%= u.id %>"><%= u.department_name %> › <%= u.name %></option><% } %></select></div>
+      <div class="col-md-6"><label class="form-label">Lokasi (opsional)</label><select class="form-select" name="location_id" data-tom><option value="">Ikuti data karyawan</option><% for (const l of locations.filter(x => x.is_active)) { %><option value="<%= l.id %>"><%= locText(l) %></option><% } %></select></div>
+      <div class="col-md-4"><label class="form-label">Ruangan</label><input class="form-control" name="room" maxlength="120"></div>
+      <div class="col-md-4"><label class="form-label">Status penggunaan</label><select class="form-select" name="status"><option>Aktif</option><option>Dipinjamkan</option></select></div>
+      <div class="col-md-4"><label class="form-label">Alasan</label><input class="form-control" name="reason" maxlength="255" placeholder="Karyawan baru, rotasi, dll."></div>
+      <div class="col-12"><label class="form-label">Keterangan</label><textarea class="form-control" name="notes" rows="2"></textarea></div>
+    </div>
+    <div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Batal</button><button class="btn btn-primary">Simpan Penugasan</button></div>
+  </form></div></div></div>
+
+<%- include('../partials/repair-modal', { techs }) %>
+<%- include('../partials/bottom') %>

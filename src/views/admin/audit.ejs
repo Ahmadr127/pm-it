@@ -1,0 +1,18 @@
+<%- include('../partials/top') %>
+<form class="filter-bar" method="get"><div class="row g-2 align-items-end">
+  <div class="col-lg-4"><label class="form-label small">Cari</label><input class="form-control" name="q" value="<%= query.q || '' %>" placeholder="Deskripsi, user, entitas, ID"></div>
+  <div class="col-lg-2 col-6"><label class="form-label small">Tindakan</label><select class="form-select" name="action"><option value="">Semua</option><% for (const a of actions) { %><option <%= query.action===a?'selected':'' %>><%= a %></option><% } %></select></div>
+  <div class="col-lg-2 col-6"><label class="form-label small">Dari</label><input type="date" class="form-control" name="from" value="<%= query.from || '' %>"></div>
+  <div class="col-lg-2 col-6"><label class="form-label small">Sampai</label><input type="date" class="form-control" name="to" value="<%= query.to || '' %>"></div>
+  <div class="col-lg-2 col-6"><button class="btn btn-navy w-100"><i class="bi bi-funnel me-1"></i>Filter</button></div>
+</div></form>
+<div class="card table-card"><div class="table-responsive"><table class="table">
+  <thead><tr><th>Waktu</th><th>Pengguna</th><th>Tindakan</th><th>Entitas</th><th>Keterangan</th><th>Perubahan</th><th>IP</th></tr></thead>
+  <tbody><% for (const l of rows) { %><tr>
+    <td class="small text-nowrap"><%= h.fmtDateTime(l.created_at) %></td><td class="small"><%= l.username || 'sistem' %></td>
+    <td><span class="badge text-bg-light"><%= l.action %></span></td><td class="small mono"><%= l.entity_type || '' %><%= l.entity_id ? `#${l.entity_id}` : '' %></td>
+    <td class="small"><%= l.description || '' %></td>
+    <td class="small" style="max-width:340px"><% if (l.old_values || l.new_values) { %><details><summary>Lihat</summary><% if (l.old_values) { %><div class="text-muted">Sebelum:</div><pre class="small mb-1" style="white-space:pre-wrap"><%= l.old_values %></pre><% } %><% if (l.new_values) { %><div class="text-muted">Sesudah:</div><pre class="small mb-0" style="white-space:pre-wrap"><%= l.new_values %></pre><% } %></details><% } %></td>
+    <td class="small mono text-muted"><%= l.ip_address || '' %></td>
+  </tr><% } %></tbody></table></div><%- include('../partials/pager') %></div>
+<%- include('../partials/bottom') %>

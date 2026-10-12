@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="<%= csrfToken %>">
+  <meta name="app-version" content="<%= typeof appVersion !== 'undefined' ? appVersion : '' %>">
+  <title><%= title %> · <%= app.name %></title>
+  <link rel="icon" href="/static/img/favicon.png" type="image/png">
+<%- include('pwa-head') %>
+  <link rel="stylesheet" href="/vendor/bootstrap/css/bootstrap.min.css">
+  <link rel="stylesheet" href="/vendor/bootstrap-icons/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/vendor/tom-select/css/tom-select.bootstrap5.min.css">
+  <link rel="stylesheet" href="/static/css/app.css?v=<%= typeof assetVersion !== 'undefined' ? assetVersion : '' %>">
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar" aria-label="Navigasi utama">
+    <a class="brand" href="/">
+      <span class="brand-logo"><img src="/static/img/logo-azra.png" alt="<%= app.company %>"></span>
+      <span class="brand-sub">Preventive Maintenance IT</span>
+    </a>
+    <nav>
+      <% for (const group of menu) { const visible = group.items.filter(i => can(i.perm)); if (!visible.length) continue; %>
+        <% if (group.section) { %><div class="nav-section"><%= group.section %></div><% } %>
+        <% for (const item of visible) { %>
+          <a class="nav-link <%= item.match.test(path) ? 'active' : '' %>" href="<%= item.href %>"><i class="bi <%= item.icon %>"></i><span><%= item.label %></span></a>
+        <% } %>
+      <% } %>
+    </nav>
+    <div class="px-3 pb-3 small" style="color:#84a58c"><%= app.company %></div>
+  </aside>
+  <div class="sidebar-backdrop" data-sidebar-close></div>
+
+  <div class="main">
+    <header class="topbar">
+      <button class="btn-icon d-lg-none" type="button" data-sidebar-toggle aria-label="Buka menu"><i class="bi bi-list"></i></button>
+      <div class="flex-grow-1 min-w-0">
+        <div class="small text-muted d-none d-md-block" style="line-height:1"><%= app.name %></div>
+        <h1 class="page-title"><%= title %></h1>
+      </div>
+      <% if (can('asset.view') || can('employee.view')) { %>
+      <div class="gsearch" data-gsearch role="search">
+        <i class="bi bi-search gsearch-ico" aria-hidden="true"></i>
+        <input type="search" class="form-control" placeholder="Cari kode aset, pengguna, ruangan..." aria-label="Pencarian cepat" autocomplete="off" spellcheck="false" data-gsearch-input>
+        <kbd class="gsearch-kbd d-none d-lg-inline">/</kbd>
+        <div class="gsearch-results shadow" role="listbox" hidden data-gsearch-results></div>
+      </div>
+      <button class="btn-icon d-md-none" type="button" data-gsearch-open aria-label="Cari"><i class="bi bi-search"></i></button>
+      <% } %>
+      <button class="btn-icon d-none" type="button" data-install-app title="Pasang aplikasi di perangkat ini" aria-label="Pasang aplikasi"><i class="bi bi-download"></i></button>
+      <div class="dropdown">
+        <button class="btn-icon" type="button" data-bs-toggle="dropdown" aria-label="Notifikasi">
+          <i class="bi bi-bell"></i><% if (notif.total) { %><span class="badge-dot"><%= notif.total %></span><% } %>
+        </button>
+        <div class="dropdown-menu dropdown-menu-end shadow border-0 p-0" style="width:320px;border-radius:14px">
+          <div class="px-3 py-2 border-bottom fw-bold small">Notifikasi</div>
+          <% if (!notif.items.length) { %>
+            <div class="p-3 text-muted small text-center"><i class="bi bi-check2-circle d-block fs-4 mb-1"></i>Tidak ada notifikasi saat ini.</div>
+          <% } %>
+          <% for (const n of notif.items) { %>
+            <a class="dropdown-item d-flex gap-2 align-items-start py-2 px-3 text-wrap" href="<%= n.href %>">
+              <i class="bi <%= n.icon %> text-<%= n.tone %> mt-1"></i><span class="small"><%= n.text %></span>
+            </a>
+          <% } %>
+        </div>
+      </div>
+      <div class="dropdown">
+        <button class="btn p-0 border-0 d-flex align-items-center gap-2" type="button" data-bs-toggle="dropdown" aria-label="Profil">
+          <span class="avatar"><%= (user.full_name || '?').split(' ').map(s => s[0]).slice(0,2).join('').toUpperCase() %></span>
+          <span class="d-none d-md-block text-start" style="line-height:1.15">
+            <span class="fw-semibold small d-block"><%= user.full_name %></span>
+            <span class="text-muted" style="font-size:.72rem"><%= user.role_name %></span>
+          </span>
+          <i class="bi bi-chevron-down small text-muted d-none d-md-block"></i>
+        </button>
+        <div class="dropdown-menu dropdown-menu-end shadow border-0" style="border-radius:14px">
+          <div class="px-3 py-2 small text-muted">Masuk sebagai <strong><%= user.username %></strong></div>
+          <a class="dropdown-item" href="/password"><i class="bi bi-key me-2"></i>Ganti Password</a>
+          <a class="dropdown-item" href="/akses-perangkat"><i class="bi bi-phone me-2"></i>Akses dari HP / PC lain</a>
+          <a class="dropdown-item d-none" href="#" data-install-app><i class="bi bi-download me-2"></i>Pasang Aplikasi</a>
+          <div class="dropdown-divider"></div>
+          <form method="post" action="/logout" class="px-2">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <button class="dropdown-item rounded text-danger" type="submit"><i class="bi bi-box-arrow-right me-2"></i>Keluar</button>
+          </form>
+        </div>
+      </div>
+    </header>
+    <main class="content">
+      <% if (flash) { %>
+        <div class="alert alert-<%= flash.type %> alert-dismissible fade show" role="alert">
+          <%= flash.message %>
+          <% if (flash.errors) { %><ul class="mb-0 mt-1 small"><% for (const e of Object.values(flash.errors)) { %><li><%= e %></li><% } %></ul><% } %>
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Tutup"></button>
+        </div>
+      <% } %>

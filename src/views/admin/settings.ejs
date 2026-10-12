@@ -1,0 +1,44 @@
+<%- include('../partials/top') %>
+<% const v = Object.fromEntries(rows.map(r => [r.setting_key, r.setting_value])); const d = Object.fromEntries(rows.map(r => [r.setting_key, r.description])); %>
+<div class="row g-3">
+  <div class="col-xl-8"><div class="card"><div class="card-header"><i class="bi bi-sliders me-1"></i>Aturan evaluasi & penjadwalan</div><div class="card-body">
+    <form method="post" action="/admin/settings" data-ajax novalidate><input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <div class="alert alert-danger d-none" data-form-alert></div>
+      <div class="row g-3">
+        <div class="col-md-6"><label class="form-label">SMART "Tidak Tersedia" diperlakukan sebagai</label><select class="form-select" name="smart_unavailable_level"><option value="PERHATIAN" <%= v.smart_unavailable_level==='PERHATIAN'?'selected':'' %>>Perlu Perhatian (direkomendasikan)</option><option value="INFO" <%= v.smart_unavailable_level==='INFO'?'selected':'' %>>Informasi saja</option></select><div class="form-text">Tidak pernah dianggap "Baik" otomatis.</div></div>
+        <div class="col-md-6"><label class="form-label">Persetujuan Manager IT</label><select class="form-select" name="approval_mode"><option value="KRITIS" <%= v.approval_mode==='KRITIS'?'selected':'' %>>Hanya hasil Perlu Perhatian / Kritis</option><option value="SEMUA" <%= v.approval_mode==='SEMUA'?'selected':'' %>>Semua maintenance Selesai</option><option value="TIDAK" <%= v.approval_mode==='TIDAK'?'selected':'' %>>Tidak diperlukan</option></select></div>
+        <div class="col-md-4"><label class="form-label">Penurunan health signifikan</label><div class="input-group"><input class="form-control" name="health_drop_significant" value="<%= v.health_drop_significant %>"><span class="input-group-text">poin %</span></div></div>
+        <div class="col-md-4"><label class="form-label">Penurunan battery health signifikan</label><div class="input-group"><input class="form-control" name="battery_drop_significant" value="<%= v.battery_drop_significant %>"><span class="input-group-text">poin %</span></div></div>
+        <div class="col-md-4"><label class="form-label">Kenaikan suhu signifikan</label><div class="input-group"><input class="form-control" name="temp_rise_significant" value="<%= v.temp_rise_significant %>"><span class="input-group-text">°C</span></div></div>
+        <div class="col-md-4"><label class="form-label">Batas "segera jatuh tempo"</label><div class="input-group"><input class="form-control" name="due_soon_days" value="<%= v.due_soon_days %>"><span class="input-group-text">hari</span></div></div>
+        <div class="col-md-4"><label class="form-label">Interval maks. bila Perlu Perhatian</label><div class="input-group"><input class="form-control" name="interval_attention_days" value="<%= v.interval_attention_days %>"><span class="input-group-text">hari</span></div></div>
+        <div class="col-md-4"><label class="form-label">Interval maks. bila Kritis</label><div class="input-group"><input class="form-control" name="interval_critical_days" value="<%= v.interval_critical_days %>"><span class="input-group-text">hari</span></div></div>
+        <div class="col-md-4"><label class="form-label">Tindak lanjut otomatis</label><select class="form-select" name="auto_followup"><option value="1" <%= v.auto_followup==='1'?'selected':'' %>>Ya</option><option value="0" <%= v.auto_followup==='0'?'selected':'' %>>Tidak</option></select></div>
+        <div class="col-md-4"><label class="form-label">Suhu minimum valid</label><div class="input-group"><input class="form-control" name="temp_min_valid" value="<%= v.temp_min_valid %>"><span class="input-group-text">°C</span></div></div>
+        <div class="col-12"><hr class="my-1"><div class="fw-semibold small text-muted">Kebijakan password</div></div>
+        <div class="col-md-4"><label class="form-label">Panjang minimal password</label><div class="input-group"><input class="form-control" name="password_min_length" value="<%= v.password_min_length || 8 %>"><span class="input-group-text">karakter</span></div></div>
+        <div class="col-md-8"><label class="form-label">Wajib kombinasi huruf besar, kecil & angka</label><select class="form-select" name="password_require_mix"><option value="0" <%= (v.password_require_mix || '0')==='0'?'selected':'' %>>Tidak (cukup memenuhi panjang minimal)</option><option value="1" <%= v.password_require_mix==='1'?'selected':'' %>>Ya (lebih aman)</option></select><div class="form-text">Berlaku untuk penggantian password berikutnya.</div></div>
+        <div class="col-12"><hr class="my-1"><div class="fw-semibold small text-muted">Instansi & akses jaringan</div></div>
+        <div class="col-md-4"><label class="form-label">Nama instansi</label><input class="form-control" name="company_name" value="<%= v.company_name || app.company %>" maxlength="120"><div class="form-text">Tampil di aplikasi & laporan PDF/Excel.</div></div>
+        <div class="col-md-8"><label class="form-label">Alamat aplikasi untuk HP & label QR</label><input class="form-control" name="public_base_url" value="<%= v.public_base_url || '' %>" placeholder="Kosongkan = otomatis (mis. https://192.168.1.10:3443)" maxlength="200"><div class="form-text">Isi bila server memakai nama/alamat tetap. Panduan lengkap: <a href="/akses-perangkat">Akses dari HP / PC lain</a>.</div></div>
+        <div class="col-md-4"><label class="form-label">Suhu maksimum valid</label><div class="input-group"><input class="form-control" name="temp_max_valid" value="<%= v.temp_max_valid %>"><span class="input-group-text">°C</span></div><div class="form-text">Menolak salah ketik (mis. 550°C).</div></div>
+      </div>
+      <button class="btn btn-primary mt-3"><i class="bi bi-check2 me-1"></i>Simpan Pengaturan</button>
+    </form>
+  </div></div></div>
+  <div class="col-xl-4">
+    <div class="card mb-3"><div class="card-header"><i class="bi bi-database me-1"></i>Data demonstrasi</div><div class="card-body small">
+      <p class="text-muted">Data contoh hanya untuk mode demonstrasi/pelatihan. Seluruh baris demo dicatat di registri sehingga dapat dihapus tuntas tanpa menyentuh data operasional.</p>
+      <p>Baris demo saat ini: <strong><%= demoCount %></strong></p>
+      <% if (demoCount) { %>
+        <form method="post" action="/admin/settings/demo/remove" data-ajax data-reload data-confirm="Hapus SELURUH data demonstrasi (aset, karyawan, maintenance, jadwal, file contoh)? Data operasional tidak terpengaruh." data-confirm-ok="Ya, hapus data demo"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="btn btn-outline-danger btn-sm"><i class="bi bi-trash me-1"></i>Hapus data demo</button></form>
+      <% } else if (!realAssets) { %>
+        <form method="post" action="/admin/settings/demo/load" data-ajax data-reload data-confirm="Muat data demonstrasi untuk pelatihan? Data ini dapat dihapus kembali." data-confirm-tone="primary" data-confirm-ok="Muat data demo"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="btn btn-outline-primary btn-sm"><i class="bi bi-download me-1"></i>Muat data demo</button></form>
+      <% } else { %><div class="text-muted">Data operasional sudah ada; pemuatan data demo dinonaktifkan agar tidak tercampur.</div><% } %>
+    </div></div>
+    <div class="card"><div class="card-header"><i class="bi bi-shield-check me-1"></i>Backup & pemulihan</div><div class="card-body small text-muted">
+      Backup data (otomatis setiap hari maupun manual), unduh, dan pemulihan tersedia di menu <a href="/admin/backup">Backup Data</a>.
+    </div></div>
+  </div>
+</div>
+<%- include('../partials/bottom') %>

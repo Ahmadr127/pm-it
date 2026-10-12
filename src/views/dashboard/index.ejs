@@ -1,0 +1,78 @@
+<%- include('../partials/top') %>
+<%
+  const hr = new Date().getHours();
+  const salam = hr < 11 ? 'Selamat pagi' : hr < 15 ? 'Selamat siang' : hr < 18 ? 'Selamat sore' : 'Selamat malam';
+  const firstName = String(user.full_name || '').split(' ')[0];
+  const tgl = new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+%>
+<section class="hello-band">
+  <%- include('../partials/pulse', { cls: 'hello-pulse' }) %>
+  <div>
+    <h2><%= salam %>, <%= firstName %></h2>
+    <div class="hello-sub"><%= tgl %>.
+      <% if (stats.overdue) { %><a href="/schedules?tab=jatuh-tempo"><%= stats.overdue %> perangkat sudah lewat jadwal maintenance.</a>
+      <% } else if (stats.due_soon) { %><a href="/schedules?tab=jatuh-tempo"><%= stats.due_soon %> perangkat jatuh tempo dalam <%= dueDays %> hari.</a>
+      <% } else { %>Semua perangkat sesuai jadwal.<% } %></div>
+  </div>
+  <div class="hello-actions">
+    <% if (can('asset.view')) { %><a class="btn" href="/scan"><i class="bi bi-qr-code-scan me-1"></i>Scan QR</a><% } %>
+    <% if (can('asset.create')) { %><a class="btn" href="/assets/new"><i class="bi bi-pc-display me-1"></i>Daftarkan PC</a><% } %>
+    <% if (can('maintenance.create')) { %><a class="btn btn-go" href="/maintenance/new"><i class="bi bi-clipboard2-plus me-1"></i>Isi maintenance</a><% } %>
+  </div>
+</section>
+<form class="filter-bar" method="get"><div class="row g-2 align-items-end">
+  <div class="col-lg-2 col-6"><label class="form-label small">Periode dari</label><input type="date" class="form-control" name="from" value="<%= from %>"></div>
+  <div class="col-lg-2 col-6"><label class="form-label small">Sampai</label><input type="date" class="form-control" name="to" value="<%= to %>"></div>
+  <div class="col-lg-3 col-md-4"><label class="form-label small">Unit kerja</label><select class="form-select" name="work_unit_id" data-tom><option value="">Semua unit</option><% for (const u of units) { %><option value="<%= u.id %>" <%= String(query.work_unit_id)===String(u.id)?'selected':'' %>><%= u.department_name %> › <%= u.name %></option><% } %></select></div>
+  <div class="col-lg-2 col-md-4 col-6"><label class="form-label small">Lokasi</label><select class="form-select" name="location_id"><option value="">Semua</option><% for (const l of locations) { %><option value="<%= l.id %>" <%= String(query.location_id)===String(l.id)?'selected':'' %>><%= locText(l) %></option><% } %></select></div>
+  <div class="col-lg-2 col-md-4 col-6"><label class="form-label small">Jenis perangkat</label><select class="form-select" name="device_type"><option value="">Semua</option><% for (const t of ['Desktop PC','Laptop','Workstation','Lainnya']) { %><option <%= query.device_type===t?'selected':'' %>><%= t %></option><% } %></select></div>
+  <div class="col-lg-1 col-12 d-flex gap-1"><button class="btn btn-navy w-100" title="Terapkan"><i class="bi bi-funnel"></i></button><a class="btn btn-light" href="/" title="Reset"><i class="bi bi-arrow-counterclockwise"></i></a></div>
+</div></form>
+
+<% const qs = (extra) => h.buildQuery({ work_unit_id: query.work_unit_id, location_id: query.location_id, device_type: query.device_type }, extra); %>
+<div class="row g-3 mb-3">
+  <div class="col-xl-3 col-6"><a class="stat-link" href="/assets<%= qs({}) %>"><div class="card stat-card tone-navy"><div class="stat-icon"><i class="bi bi-pc-display"></i></div><div><div class="stat-value"><%= stats.total %></div><div class="stat-label">Total perangkat terdaftar <span class="d-block">(<%= stats.active %> tidak nonaktif)</span></div></div></div></a></div>
+  <div class="col-xl-3 col-6"><a class="stat-link" href="/maintenance<%= h.buildQuery({ from, to, status: 'Selesai' }) %>"><div class="card stat-card tone-purple"><div class="stat-icon"><i class="bi bi-clipboard2-check"></i></div><div><div class="stat-value"><%= stats.maintained %></div><div class="stat-label">Sudah maintenance <span class="d-block"><%= h.fmtDate(from) %> – <%= h.fmtDate(to) %></span></div></div></div></a></div>
+  <div class="col-xl-3 col-6"><a class="stat-link" href="/assets<%= qs({ due: 'never' }) %>"><div class="card stat-card tone-info"><div class="stat-icon"><i class="bi bi-hourglass"></i></div><div><div class="stat-value"><%= stats.not_maintained %></div><div class="stat-label">Belum maintenance pada periode ini</div></div></div></a></div>
+  <div class="col-xl-3 col-6"><a class="stat-link" href="/schedules?tab=jatuh-tempo"><div class="card stat-card tone-warn"><div class="stat-icon"><i class="bi bi-calendar-event"></i></div><div><div class="stat-value"><%= stats.due_soon %></div><div class="stat-label">Jatuh tempo ≤ <%= dueDays %> hari <span class="d-block text-danger"><%= stats.overdue %> terlambat</span></div></div></div></a></div>
+  <div class="col-xl-4 col-4"><a class="stat-link" href="/assets<%= qs({ health: 'BAIK' }) %>"><div class="card stat-card stat-compact tone-ok"><div class="stat-icon"><i class="bi bi-check-circle"></i></div><div><div class="stat-value"><%= stats.baik %></div><div class="stat-label">Kondisi baik</div></div></div></a></div>
+  <div class="col-xl-4 col-4"><a class="stat-link" href="/assets<%= qs({ health: 'PERHATIAN' }) %>"><div class="card stat-card stat-compact tone-warn"><div class="stat-icon"><i class="bi bi-exclamation-triangle"></i></div><div><div class="stat-value"><%= stats.perhatian %></div><div class="stat-label">Perlu perhatian</div></div></div></a></div>
+  <div class="col-xl-4 col-4"><a class="stat-link" href="/assets<%= qs({ health: 'KRITIS' }) %>"><div class="card stat-card stat-compact tone-crit"><div class="stat-icon"><i class="bi bi-x-octagon"></i></div><div><div class="stat-value"><%= stats.kritis %></div><div class="stat-label">Kondisi kritis</div></div></div></a></div>
+</div>
+<% if (approvals && can('maintenance.approve')) { %><div class="alert alert-info"><i class="bi bi-patch-question me-1"></i><a href="/maintenance?approval=Menunggu"><strong><%= approvals %></strong> hasil maintenance menunggu persetujuan Anda.</a></div><% } %>
+
+<div class="row g-3 mb-3">
+  <div class="col-xl-8"><div class="card h-100"><div class="card-header d-flex justify-content-between"><span>Maintenance selesai per bulan</span><span class="small text-muted fw-normal">berdasarkan hasil evaluasi</span></div><div class="card-body">
+    <% if (!hasMonthly) { %><%- include('../partials/empty', { icon: 'bi-bar-chart', heading: 'Belum ada maintenance selesai pada periode ini', text: 'Grafik akan terisi otomatis setelah maintenance ditandai Selesai.' }) %>
+    <% } else { %><div class="chart-box"><canvas data-chart="cMonthly" aria-label="Grafik maintenance bulanan"></canvas></div><script type="application/json" id="cMonthly"><%- JSON.stringify(chartMonthly).replace(/</g, '\\u003c') %></script><% } %>
+  </div></div></div>
+  <div class="col-xl-4"><div class="card h-100"><div class="card-header">Status kesehatan perangkat</div><div class="card-body">
+    <% if (!stats.active) { %><%- include('../partials/empty', { icon: 'bi-pie-chart', heading: 'Belum ada perangkat', text: '' }) %>
+    <% } else { %><div class="chart-box sm"><canvas data-chart="cHealth" aria-label="Grafik status kesehatan"></canvas></div><script type="application/json" id="cHealth"><%- JSON.stringify(chartHealth).replace(/</g, '\\u003c') %></script>
+    <div class="small text-muted text-center mt-2">Status dari evaluasi maintenance terakhir tiap perangkat (gabungan seluruh parameter).</div><% } %>
+  </div></div></div>
+</div>
+
+<div class="row g-3">
+  <div class="col-xl-7"><div class="card h-100"><div class="card-header d-flex justify-content-between"><span><i class="bi bi-lightning-charge me-1 text-danger"></i>Perangkat yang membutuhkan tindakan IT</span><a href="/follow-ups" class="small fw-normal">Tindak lanjut →</a></div>
+    <div class="table-responsive">
+    <% if (!actions.length) { %><%- include('../partials/empty', { icon: 'bi-emoji-smile', heading: 'Tidak ada perangkat yang perlu tindakan', text: 'Semua perangkat sesuai jadwal dan dalam kondisi baik.' }) %><% } else { %>
+    <table class="table table-hover"><thead><tr><th>Aset</th><th>Pengguna</th><th>Kondisi</th><th>Alasan</th><th></th></tr></thead><tbody>
+    <% for (const a of actions) { const late = a.next_maintenance_date && a.next_maintenance_date < h.today(); %><tr>
+      <td><a href="/assets/<%= a.id %>" class="code-chip"><%= a.asset_code %></a><div class="small text-muted"><%= h.deviceName(a.asset_code, a.hostname) %></div></td>
+      <td class="small"><%= a.employee_name || '-' %><div class="text-muted"><%= a.department_name || '' %></div></td>
+      <td><%- h.statusBadge(a.current_health_status) %></td>
+      <td class="small"><% if (late) { %><div class="text-danger"><i class="bi bi-alarm"></i> Jadwal lewat <%= h.diffDays(h.today(), a.next_maintenance_date) %> hari</div><% } %><% if (a.open_fu) { %><div><i class="bi bi-tools"></i> <%= a.fu_title %><%= a.open_fu > 1 ? ` (+${a.open_fu - 1})` : '' %></div><% } %><% if (!late && !a.open_fu) { %>Hasil evaluasi terakhir<% } %></td>
+      <td class="text-end"><% if (can('maintenance.create')) { %><a class="btn btn-soft btn-sm" href="/maintenance/new?asset_id=<%= a.id %>"><i class="bi bi-clipboard2-plus"></i></a><% } %></td>
+    </tr><% } %></tbody></table><% } %></div>
+  </div></div>
+  <div class="col-xl-5"><div class="card h-100"><div class="card-header d-flex justify-content-between"><span>Riwayat maintenance terbaru</span><a href="/maintenance" class="small fw-normal">Semua →</a></div><div class="card-body p-0">
+    <% if (!recent.length) { %><%- include('../partials/empty', { icon: 'bi-clipboard2', heading: 'Belum ada riwayat maintenance', text: '', action: can('maintenance.create') ? { href: '/maintenance/new', label: 'Mulai maintenance' } : null }) %><% } %>
+    <% for (const r of recent) { %><a href="/maintenance/<%= r.id %>" class="d-flex gap-3 align-items-center px-3 py-2 border-bottom text-reset">
+      <div class="text-center" style="min-width:44px"><div class="fw-bold"><%= Number(r.maintenance_date.slice(8,10)) %></div><div class="small text-muted"><%= h.BLN[Number(r.maintenance_date.slice(5,7))-1] %></div></div>
+      <div class="flex-grow-1 min-w-0"><div class="fw-semibold text-truncate"><span class="code-chip me-1"><%= r.asset_code_snapshot %></span><%= h.deviceName(r.asset_code_snapshot, r.hostname_snapshot) %></div><div class="small text-muted text-truncate"><%= r.employee_name_snapshot || '-' %> · <%= r.technician || '-' %></div></div>
+      <div class="text-end"><%- r.status === 'Selesai' ? h.statusBadge(r.evaluated_status) : h.recordBadge(r.status) %></div>
+    </a><% } %>
+  </div></div></div>
+</div>
+<%- include('../partials/bottom') %>

@@ -1,0 +1,17 @@
+<% if (user) { %><%- include('../partials/top') %><% } else { %>
+<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title><%= title %></title>
+<link rel="stylesheet" href="/vendor/bootstrap/css/bootstrap.min.css"><link rel="stylesheet" href="/vendor/bootstrap-icons/bootstrap-icons.min.css"><link rel="stylesheet" href="/static/css/app.css?v=<%= typeof assetVersion !== 'undefined' ? assetVersion : '' %>"></head><body><main class="content"><% } %>
+<div class="d-flex justify-content-center py-5">
+  <div class="card text-center" style="max-width:520px;width:100%">
+    <div class="card-body p-5">
+      <div class="mx-auto mb-3 rounded-circle d-grid" style="width:64px;height:64px;place-items:center;background:var(--purple-100);color:var(--purple-600)">
+        <i class="bi <%= status === 403 ? 'bi-shield-lock' : status === 404 ? 'bi-signpost-split' : 'bi-bug' %> fs-3"></i>
+      </div>
+      <div class="text-muted small fw-semibold mb-1">Kode <%= status %></div>
+      <h4 class="mb-2"><%= status === 403 ? 'Akses ditolak' : status === 404 ? 'Halaman tidak ditemukan' : 'Terjadi kesalahan' %></h4>
+      <p class="text-muted"><%= message %></p>
+      <a href="/" class="btn btn-primary mt-2"><i class="bi bi-house me-1"></i>Kembali ke beranda</a>
+    </div>
+  </div>
+</div>
+<% if (user) { %><%- include('../partials/bottom') %><% } else { %></main></body></html><% } %>

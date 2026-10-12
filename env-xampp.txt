@@ -1,0 +1,35 @@
+# Konfigurasi lokal XAMPP (dibuat otomatis). Jangan bagikan file ini.
+NODE_ENV=production
+PORT=3000
+APP_NAME=PM-IT Asset Monitoring
+COMPANY_NAME=PT Contoh Perusahaan
+TZ=Asia/Jakarta
+APP_URL=http://localhost:3000
+
+# MySQL bawaan XAMPP: user root tanpa password (default XAMPP).
+# Bila root XAMPP Anda memakai password, isi di antara tanda kutip.
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_NAME=pm_asset
+DB_USER=root
+DB_PASSWORD=""
+DB_CONNECTION_LIMIT=10
+
+SESSION_SECRET=f57800fcaddc32e0205ef57f3907d03e7a0f0a5d15424d562727e58528e23d4a5c2e78cf84ef83940f2efddd58029b9b
+COOKIE_SECURE=false
+SESSION_IDLE_MINUTES=60
+TRUST_PROXY=0
+LOGIN_MAX_ATTEMPTS=5
+LOGIN_LOCK_MINUTES=15
+
+# Password awal akun "admin" (wajib diganti saat login pertama)
+ADMIN_INITIAL_PASSWORD="Admin#Pmit2026"
+
+UPLOAD_DIR=storage/uploads
+MAX_IMAGE_MB=5
+MAX_PDF_MB=10
+
+BACKUP_DIR=storage/backups
+MYSQLDUMP_PATH=C:\xampp\mysql\bin\mysqldump.exe
+MYSQL_PATH=C:\xampp\mysql\bin\mysql.exe
+BACKUP_RETENTION_DAYS=30

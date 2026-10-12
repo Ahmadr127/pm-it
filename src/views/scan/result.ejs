@@ -1,0 +1,95 @@
+<%- include('../partials/top') %>
+<% const place = (x) => [x.location_text_snapshot, x.room ? `R. ${x.room}` : null].filter(Boolean).join(' · '); %>
+<div class="row justify-content-center"><div class="col-xl-9">
+
+<div class="card mb-3"><div class="card-body">
+  <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+    <span class="code-chip"><%= a.asset_code %></span><%- h.assetStatusBadge(a.asset_status) %><%- h.statusBadge(a.current_health_status) %>
+  </div>
+  <h2 class="h5 mb-1"><i class="bi <%= a.device_type==='Laptop'?'bi-laptop':'bi-pc-display' %> me-1"></i><%= h.deviceName(a.asset_code, a.hostname, a.asset_code) %>
+    <span class="text-muted fw-normal small">· <%= [a.brand, a.model].filter(Boolean).join(' ') || a.device_type %></span></h2>
+  <div class="small text-muted">Maintenance terakhir: <%= h.fmtDate(a.last_maintenance_date) %> · berikutnya: <%= h.fmtDate(a.next_maintenance_date) %></div>
+  <div class="d-flex flex-wrap gap-2 mt-3">
+    <% if (can('maintenance.create')) { %><a href="/maintenance/new?asset_id=<%= a.id %>" class="btn btn-primary"><i class="bi bi-clipboard2-plus me-1"></i>Isi Maintenance</a><% } %>
+    <a href="/assets/<%= a.id %>" class="btn btn-light"><i class="bi bi-info-circle me-1"></i>Detail aset</a>
+    <a href="/scan" class="btn btn-light"><i class="bi bi-qr-code-scan me-1"></i>Scan lagi</a>
+  </div>
+</div></div>
+
+<div class="card mb-3 border-success-subtle" data-scan-owner><div class="card-body">
+  <div class="small text-muted text-uppercase fw-semibold mb-1">Terdaftar untuk</div>
+  <% if (current) { %>
+    <div class="fs-5 fw-bold"><i class="bi bi-person-fill me-1"></i><%= current.person || '(tanpa nama)' %></div>
+    <div class="text-muted"><i class="bi bi-geo-alt me-1"></i><%= place(current) || 'Lokasi belum diisi' %></div>
+    <div class="small text-muted mt-1">Sejak <%= h.fmtDate(current.start_date) %><%= current.recorder ? ` · dicatat ${current.recorder}` : '' %></div>
+  <% } else { %>
+    <div class="text-muted">Belum ada pengguna / lokasi terdaftar untuk perangkat ini.</div>
+  <% } %>
+  <div class="alert alert-light border small mt-3 mb-0"><i class="bi bi-info-circle me-1"></i>Cocokkan dengan siapa yang memakai PC ini sekarang. Bila berbeda, gunakan <strong>Catat perpindahan</strong> di bawah.</div>
+</div></div>
+
+<% if (canMove) { %>
+<div class="card mb-3"><div class="card-body">
+  <button class="btn btn-outline-warning w-100" type="button" data-bs-toggle="collapse" data-bs-target="#movePanel"><i class="bi bi-arrow-left-right me-1"></i>Catat perpindahan / PC dipakai orang lain</button>
+  <div class="collapse mt-3" id="movePanel">
+    <form method="post" action="/s/<%= a.id %>/pindah" data-ajax>
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <div class="row g-2">
+        <div class="col-md-6"><label class="form-label">Dipakai oleh (sekarang)</label>
+          <input class="form-control" name="employee_name" list="dlEmp" maxlength="150" placeholder="Nama perawat / staf"></div>
+        <div class="col-md-3"><label class="form-label">Lokasi / gedung</label>
+          <input class="form-control" name="location_name" list="dlLoc" maxlength="120" placeholder="mis. Rawat Inap"></div>
+        <div class="col-md-3"><label class="form-label">Ruangan</label>
+          <input class="form-control" name="room" maxlength="120" placeholder="mis. Nurse Station 2"></div>
+        <div class="col-md-6"><label class="form-label">Keterangan <span class="text-danger">*</span></label>
+          <select class="form-select" name="reason_type" required>
+            <% REASONS.forEach((r) => { %><option value="<%= r %>"><%= r %></option><% }) %>
+          </select></div>
+        <div class="col-md-6"><label class="form-label">Catatan</label>
+          <input class="form-control" name="notes" maxlength="500" placeholder="opsional"></div>
+      </div>
+      <div class="form-text">Kolom yang dikosongkan memakai data sebelumnya. Riwayat pemegang lama tetap tersimpan. Pilihan <strong>tanpa izin</strong> otomatis membuat Tindak Lanjut.</div>
+      <button class="btn btn-warning mt-2" type="submit"><i class="bi bi-save me-1"></i>Simpan perpindahan</button>
+    </form>
+    <datalist id="dlEmp"><% employees.forEach((e) => { %><option value="<%= e.full_name %>"><% }) %></datalist>
+    <datalist id="dlLoc"><% locations.forEach((l) => { %><option value="<%= l.name %>"><% }) %></datalist>
+  </div>
+</div></div>
+<% } %>
+
+<div class="card mb-3"><div class="card-body">
+  <h6 class="mb-3"><i class="bi bi-clock-history me-1"></i>Riwayat pemegang PC ini</h6>
+  <% if (!history.length) { %><div class="text-muted small">Belum ada riwayat.</div><% } else { %>
+  <ul class="list-unstyled scan-timeline mb-0" data-scan-history>
+    <% history.forEach((x) => { %>
+    <li class="<%= x.is_current ? 'is-current' : '' %>">
+      <div class="d-flex flex-wrap justify-content-between gap-2">
+        <div class="fw-semibold"><%= x.person || '(tanpa nama)' %> <% if (x.is_current) { %><%- h.pill('Sekarang', 'success') %><% } %></div>
+        <div class="small text-muted text-nowrap"><%= h.fmtDate(x.start_date) %> – <%= x.end_date ? h.fmtDate(x.end_date) : 'sekarang' %></div>
+      </div>
+      <div class="small text-muted"><%= place(x) || '-' %></div>
+      <% if (x.reason) { %><div class="small"><%= x.reason %></div><% } %>
+      <% if (x.recorder) { %><div class="small text-muted">Dicatat oleh <%= x.recorder %></div><% } %>
+    </li>
+    <% }) %>
+  </ul>
+  <% } %>
+</div></div>
+
+<div class="card mb-3"><div class="card-body">
+  <h6 class="mb-3"><i class="bi bi-clipboard2-check me-1"></i>Maintenance terakhir</h6>
+  <% if (!records.length) { %><div class="text-muted small">Belum pernah di-maintenance.</div><% } else { %>
+  <div class="list-group list-group-flush">
+    <% records.forEach((r) => { %>
+    <a class="list-group-item list-group-item-action px-0" href="/maintenance/<%= r.id %>">
+      <div class="d-flex justify-content-between gap-2"><span class="fw-semibold"><%= h.fmtDate(r.maintenance_date) %></span><%- h.finalBadge(r.final_condition) %></div>
+      <div class="small text-muted">Saat itu dipakai: <%= r.employee_name_snapshot || '-' %><%= r.location_snapshot || r.room_snapshot ? ` · ${[r.location_snapshot, r.room_snapshot].filter(Boolean).join(' · ')}` : '' %></div>
+      <div class="small text-muted">Teknisi: <%= r.technician || '-' %> · <%= r.status %></div>
+    </a>
+    <% }) %>
+  </div>
+  <% } %>
+</div></div>
+
+</div></div>
+<%- include('../partials/bottom') %>

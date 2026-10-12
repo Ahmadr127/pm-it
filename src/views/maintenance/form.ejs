@@ -1,0 +1,230 @@
+<%- include('../partials/top') %>
+<%
+  const R = record || {};
+  const isEdit = !!record;
+  const val = (k) => (R[k] !== null && R[k] !== undefined ? R[k] : (defaults[k] !== undefined && !isEdit ? defaults[k] : ''));
+  const regSsd = ctx ? ctx.storages.filter(s => s.storage_type === 'SSD').map(s => ({ ...s, storage_device_id: s.id })) : [];
+  const regHdd = ctx ? ctx.storages.filter(s => s.storage_type === 'HDD').map(s => ({ ...s, storage_device_id: s.id })) : [];
+  const ssdItems = isEdit ? R.storages.filter(s => s.storage_type === 'SSD') : regSsd;
+  const hddItems = isEdit ? R.storages.filter(s => s.storage_type === 'HDD') : regHdd;
+  const hddPresence = isEdit ? (R.hdd_presence || '') : (regHdd.length ? 'ADA' : '');
+  const ssdPresence = isEdit ? (R.ssd_presence || (ssdItems.length ? 'ADA' : '')) : (regSsd.length ? 'ADA' : '');
+  const B = (isEdit && R.battery) || {};
+  const taskMap = Object.fromEntries((R.tasks || []).map(t => [t.task_code, t]));
+  const hasBattery = ctx ? ctx.has_battery : null;
+%>
+<form id="pmForm" method="post" action="<%= isEdit ? `/maintenance/${R.id}` : '/maintenance' %>?_csrf=<%= csrfToken %>" enctype="multipart/form-data" novalidate data-progress
+      data-has-battery="<%= hasBattery === null ? '' : (hasBattery ? '1' : '0') %>" data-device-type="<%= deviceType || '' %>" data-edit="<%= isEdit ? '1' : '0' %>">
+  <input type="hidden" name="schedule_id" value="<%= isEdit ? (R.schedule_id || '') : (schedule ? schedule.id : '') %>">
+  <input type="hidden" name="cpu_data_source" value="<%= R.cpu_data_source || 'MANUAL' %>" data-cpu-source>
+  <div class="alert alert-danger d-none" data-form-alert></div>
+  <% if (isEdit && R.approval_status === 'Ditolak') { %><div class="alert alert-warning"><i class="bi bi-arrow-counterclockwise me-1"></i>Hasil ini <strong>ditolak</strong> oleh Manager IT: <%= R.approval_notes %>. Perbaiki lalu tandai Selesai kembali.</div><% } %>
+  <% if (schedule && !isEdit) { %><div class="alert alert-info py-2"><i class="bi bi-calendar-check me-1"></i>Maintenance ini akan menyelesaikan jadwal tanggal <strong><%= h.fmtDate(schedule.scheduled_date) %></strong>.</div><% } %>
+
+  <!-- A. Informasi maintenance -->
+  <div class="soft-card soft-info mb-3">
+    <div class="soft-title"><span class="ico"><i class="bi bi-clipboard2-data"></i></span>Informasi Maintenance</div>
+    <div class="row g-3">
+      <% if (isEdit) { %><div class="col-md-3 col-6"><label class="form-label">No. maintenance</label><input class="form-control mono" value="<%= R.maintenance_no %>" readonly tabindex="-1"></div><% } %>
+      <div class="col-md-3 col-6"><label class="form-label">Tanggal maintenance<span class="req">*</span></label><input type="date" class="form-control" name="maintenance_date" value="<%= val('maintenance_date') %>" required></div>
+      <div class="col-md-2 col-6"><label class="form-label">Jam pemeriksaan<span class="req">*</span></label><input type="time" class="form-control" name="check_time" value="<%= String(val('check_time')).slice(0,5) %>" required></div>
+      <div class="col-md-4 col-6"><label class="form-label">Petugas IT<span class="req">*</span></label>
+        <select class="form-select" name="technician_user_id" required><option value="">— Pilih —</option><% for (const t of techs) { %><option value="<%= t.id %>" <%= String(val('technician_user_id')) === String(t.id) ? 'selected' : '' %>><%= t.full_name %></option><% } %></select></div>
+      <div class="col-md-9"><label class="form-label">Perangkat (PC)<span class="req">*</span></label>
+        <% if (isEdit) { %><input type="hidden" name="asset_id" value="<%= R.asset_id %>"><input class="form-control" value="<%= [R.hostname_snapshot, R.asset_code_snapshot].filter(Boolean).join(' · ') %>" readonly tabindex="-1">
+        <% } else { %>
+          <input type="hidden" name="asset_mode" value="<%= reg && reg.startNew ? 'new' : 'existing' %>" data-asset-mode-input>
+          <div data-existing-only>
+            <select name="asset_id" id="assetSelect" data-asset-search required placeholder="Ketik hostname / nama pengguna / departemen...">
+              <% if (ctx) { %><option value="<%= ctx.id %>" selected data-data="<%= JSON.stringify({ id: ctx.id, asset_code: ctx.asset_code, hostname: ctx.hostname }) %>"><%= ctx.asset_code %></option><% } %></select>
+            <% if (reg) { %><div class="form-text"><a href="#" data-asset-mode="new"><i class="bi bi-plus-circle me-1"></i>PC belum terdaftar? Daftarkan perangkat baru</a></div><% } %>
+          </div>
+          <% if (reg) { %><div data-new-only class="d-none">
+            <div class="form-control bg-success-subtle border-success-subtle"><i class="bi bi-pc-display me-1"></i>Perangkat baru — didaftarkan otomatis saat disimpan</div>
+            <div class="form-text"><a href="#" data-asset-mode="existing"><i class="bi bi-arrow-left me-1"></i>Pilih dari perangkat yang sudah terdaftar</a></div>
+          </div><% } %>
+        <% } %>
+      </div>
+      <input type="hidden" name="status" value="<%= R.status && R.status !== 'Draft' ? R.status : 'Dalam Proses' %>">
+      <div class="col-md-3" data-existing-only><label class="form-label">Jenis perangkat</label><input class="form-control" data-ctx="device_type" value="<%= ctx ? ctx.device_type : '' %>" readonly tabindex="-1"></div>
+    </div>
+    <hr class="my-3">
+    <% if (reg) { %>
+    <div data-new-only class="d-none" data-new-asset-block>
+      <div class="row g-3">
+        <div class="col-md-3"><label class="form-label">Nama perangkat / hostname<span class="req">*</span></label><input class="form-control" name="na[hostname]" maxlength="100" placeholder="mis. PC-KEUANGAN-01" data-na></div>
+        <div class="col-md-3"><label class="form-label">Jenis perangkat<span class="req">*</span></label>
+          <select class="form-select" name="na[device_type]" data-na data-na-type><option value="">— Pilih —</option><% for (const t of A.DEVICE_TYPES) { %><option><%= t %></option><% } %></select></div>
+        <div class="col-md-3"><label class="form-label">Merek PC</label><input class="form-control" name="na[brand]" maxlength="80" placeholder="mis. Lenovo, HP, Dell" data-na></div>
+        <div class="col-md-3"><label class="form-label">Nama pengguna PC</label><input class="form-control" name="na[employee_name]" maxlength="150" list="dlEmp" autocomplete="off" data-na></div>
+        <div class="col-md-6"><label class="form-label">Lokasi / gedung</label><input class="form-control" name="na[location_name]" maxlength="120" list="dlLoc" autocomplete="off" placeholder="mis. Gedung A" data-na></div>
+        <div class="col-md-6"><label class="form-label">Ruangan</label><input class="form-control" name="na[room]" maxlength="120" placeholder="mis. Farmasi" data-na></div>
+      </div>
+      <datalist id="dlEmp"><% for (const e of reg.employees) { %><option value="<%= e.full_name %>"></option><% } %></datalist>
+      <datalist id="dlLoc"><% for (const l of reg.locations) { %><option value="<%= l.name %>"></option><% } %></datalist>
+      <div class="form-text mt-2"><i class="bi bi-magic me-1"></i>Saat maintenance disimpan, data ini otomatis masuk ke <strong>Master Aset PC</strong>, <strong>Pengguna PC</strong>, dan <strong>Lokasi</strong>. Nama yang sudah ada dipakai ulang (tidak dobel). Kolom yang tidak diketahui cukup dikosongkan (tidak perlu diisi "-").</div>
+    </div>
+    <% } %>
+    <div class="row g-3 small-readonly" data-existing-only>
+      <div class="col-md-4"><label class="form-label">Nama perangkat</label><input class="form-control" data-ctx="hostname" value="<%= ctx ? ctx.hostname : '' %>" readonly tabindex="-1"></div>
+      <div class="col-md-4"><label class="form-label">Nama pengguna PC</label><input class="form-control" data-ctx="employee_name" value="<%= ctx ? (ctx.employee_name || '') : '' %>" readonly tabindex="-1" placeholder="Belum ada pengguna aktif"></div>
+      <div class="col-md-4"><label class="form-label">Departemen</label><input class="form-control" data-ctx="department_name" value="<%= ctx ? (ctx.department_name || '') : '' %>" readonly tabindex="-1"></div>
+      <div class="col-md-4"><label class="form-label">Unit kerja</label><input class="form-control" data-ctx="work_unit_name" value="<%= ctx ? (ctx.work_unit_name || '') : '' %>" readonly tabindex="-1"></div>
+      <div class="col-md-5"><label class="form-label">Lokasi & ruangan</label><input class="form-control" data-ctx="location_full" value="<%= ctx ? [ctx.location_text, ctx.room ? `R. ${ctx.room}` : null].filter(Boolean).join(' · ') : '' %>" readonly tabindex="-1"></div>
+      <div class="col-md-3"><label class="form-label">Maintenance terakhir</label><input class="form-control" data-ctx="last_maintenance" value="<%= ctx ? h.fmtDate(ctx.last_maintenance_date) : '' %>" readonly tabindex="-1"></div>
+    </div>
+    <div class="form-text mt-2" data-existing-only><i class="bi bi-lock me-1"></i>Data perangkat & pengguna diambil otomatis dari master data (read-only) dan disimpan sebagai snapshot pada laporan ini.</div>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <!-- B. CPU & SSD -->
+    <div class="col-xl-6">
+      <div class="soft-card soft-ssd">
+        <div class="soft-title"><span class="ico"><i class="bi bi-device-ssd"></i></span>SSD / Storage Monitoring</div>
+        <div class="storage-item" style="border-style:solid">
+          <div class="storage-head"><span><i class="bi bi-cpu me-1"></i>Suhu CPU</span></div>
+          <div class="row g-2 align-items-end">
+            <div class="col-sm-6"><label class="form-label">Suhu CPU<span class="req" data-req-complete>*</span></label>
+              <div class="input-group"><input class="form-control" name="cpu_temp_c" value="<%= R.cpu_temp_c ?? '' %>" inputmode="decimal" data-numeric data-measured data-cpu-input placeholder="mis. 55"><span class="input-group-text">°C</span></div></div>
+            <div class="col-sm-6"><label class="form-label">Kondisi beban</label>
+              <select class="form-select" name="cpu_load_condition"><option value="">—</option><% for (const l of M.LOAD) { %><option <%= R.cpu_load_condition === l ? 'selected' : '' %>><%= l %></option><% } %></select></div>
+            <input type="hidden" name="cpu_reading_tool" value="<%= R.cpu_reading_tool || '' %>">
+            <div class="col-12"><div class="form-check"><input class="form-check-input" type="checkbox" name="cpu_unavailable" value="1" id="cpuNA" data-cpu-na <%= isEdit && R.status !== 'Draft' && R.cpu_temp_c === null ? 'checked' : '' %>><label class="form-check-label small" for="cpuNA">Sensor suhu CPU tidak dapat dibaca / tidak tersedia (nilai disimpan kosong, bukan 0)</label></div></div>
+          </div>
+        </div>
+        <div class="choice-pills mb-3" data-field-wrap>
+          <div class="form-check"><input class="form-check-input" type="radio" name="ssd_presence" id="ssdYes" value="ADA" <%= ssdPresence === 'ADA' ? 'checked' : '' %> data-presence="SSD"><label class="form-check-label" for="ssdYes">Ada SSD</label></div>
+          <div class="form-check"><input class="form-check-input" type="radio" name="ssd_presence" id="ssdNo" value="TIDAK_ADA" <%= ssdPresence === 'TIDAK_ADA' ? 'checked' : '' %> data-presence="SSD"><label class="form-check-label" for="ssdNo">Tidak Ada SSD</label></div>
+        </div>
+        <div data-presence-block="SSD" class="<%= ssdPresence === 'TIDAK_ADA' ? 'is-disabled-block' : '' %>">
+          <div data-storage-list="SSD">
+            <% (ssdItems.length ? ssdItems : [null]).forEach((s, i) => { %><%- include('_storage', { type: 'SSD', idx: i, s, A }) %><% }) %>
+          </div>
+          <button type="button" class="btn btn-sm btn-light border" data-add-storage="SSD"><i class="bi bi-plus-lg me-1"></i>Tambah SSD</button>
+        </div>
+        <div class="alert alert-light border small mt-3 mb-0 <%= ssdPresence === 'TIDAK_ADA' ? '' : 'd-none' %>" data-presence-note="SSD"><i class="bi bi-slash-circle me-1"></i>Tidak ada SSD — nilai SSD disimpan sebagai <strong>tidak berlaku (NULL)</strong>, bukan 0%.</div>
+        <div class="form-text mt-2">Isi hanya nilai yang benar-benar diukur. Kosongkan bila tidak diperiksa — sistem tidak menganggapnya 0.</div>
+      </div>
+    </div>
+    <!-- C. HDD -->
+    <div class="col-xl-6">
+      <div class="soft-card soft-hdd">
+        <div class="soft-title"><span class="ico"><i class="bi bi-device-hdd"></i></span>HDD Monitoring</div>
+        <div class="choice-pills mb-3" data-field-wrap>
+          <div class="form-check"><input class="form-check-input" type="radio" name="hdd_presence" id="hddYes" value="ADA" <%= hddPresence === 'ADA' ? 'checked' : '' %> data-presence="HDD"><label class="form-check-label" for="hddYes">Ada HDD</label></div>
+          <div class="form-check"><input class="form-check-input" type="radio" name="hdd_presence" id="hddNo" value="TIDAK_ADA" <%= hddPresence === 'TIDAK_ADA' ? 'checked' : '' %> data-presence="HDD"><label class="form-check-label" for="hddNo">Tidak Ada HDD</label></div>
+        </div>
+        <div data-presence-block="HDD" class="<%= hddPresence === 'TIDAK_ADA' ? 'is-disabled-block' : '' %>">
+          <div data-storage-list="HDD">
+            <% hddItems.forEach((s, i) => { %><%- include('_storage', { type: 'HDD', idx: i, s, A }) %><% }) %>
+          </div>
+          <button type="button" class="btn btn-sm btn-light border" data-add-storage="HDD"><i class="bi bi-plus-lg me-1"></i>Tambah HDD</button>
+        </div>
+        <div class="alert alert-light border small mt-3 mb-0 <%= hddPresence === 'TIDAK_ADA' ? '' : 'd-none' %>" data-presence-note="HDD"><i class="bi bi-slash-circle me-1"></i>Tidak ada HDD — nilai HDD disimpan sebagai <strong>tidak berlaku (NULL)</strong>, bukan 0%.</div>
+      </div>
+    </div>
+
+    <!-- D. Baterai -->
+    <div class="col-xl-6">
+      <div class="soft-card soft-bat">
+        <div class="soft-title"><span class="ico"><i class="bi bi-battery-half"></i></span>Pemeriksaan Baterai Laptop</div>
+        <div data-battery-na class="<%= hasBattery === false ? '' : 'd-none' %>"><div class="py-4 text-center text-muted"><i class="bi bi-plug fs-3 d-block mb-1"></i><strong>Tidak Berlaku</strong><div class="small">Perangkat ini tidak memiliki baterai (mis. Desktop PC).</div></div></div>
+        <div data-battery-pending class="<%= hasBattery === null ? '' : 'd-none' %>"><div class="py-4 text-center text-muted small">Pilih kode aset terlebih dahulu.</div></div>
+        <div data-battery-fields class="<%= hasBattery ? '' : 'd-none' %>">
+          <input type="hidden" name="battery[data_source]" value="<%= B.data_source || 'MANUAL' %>" data-source-flag>
+          <div class="row g-2">
+            <%# Isian lama disimpan tanpa ditampilkan agar tidak hilang saat diubah %>
+            <input type="hidden" name="battery[design_capacity_mwh]" value="<%= B.design_capacity_mwh ?? '' %>">
+            <input type="hidden" name="battery[full_charge_capacity_mwh]" value="<%= B.full_charge_capacity_mwh ?? '' %>">
+            <input type="hidden" name="battery[cycle_count]" value="<%= B.cycle_count ?? '' %>">
+            <input type="hidden" name="battery[notes]" value="<%= B.notes || '' %>">
+            <div class="col-sm-5"><label class="form-label">Battery health</label><div class="input-group"><input class="form-control" name="battery[health_percent]" value="<%= B.health_percent ?? '' %>" inputmode="decimal" data-numeric data-measured data-min="0" data-max="150" placeholder="mis. 85"><span class="input-group-text">%</span></div></div>
+            <div class="col-sm-7"><label class="form-label">Status baterai<span class="req" data-req-complete>*</span></label>
+              <select class="form-select" name="battery[battery_status]"><option value="">— Pilih —</option><% for (const s of M.BATTERY_STATUS) { %><option <%= B.battery_status === s ? 'selected' : '' %>><%= s %></option><% } %></select></div>
+          </div>
+          <div class="form-text mt-1">Battery health dari aplikasi bawaan laptop / BatteryInfoView. Kosongkan bila tidak dapat dibaca — tidak dianggap rusak.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- E. Perawatan fisik -->
+    <div class="col-xl-6">
+      <div class="soft-card soft-phy">
+        <div class="soft-title"><span class="ico"><i class="bi bi-wind"></i></span>Pemeriksaan Perawatan Fisik</div>
+        <div class="small text-muted mb-2">Pilih status setiap item. Tidak ada item yang dianggap selesai tanpa konfirmasi teknisi.</div>
+        <div class="d-flex justify-content-end gap-3 mb-1 flex-wrap"><button type="button" class="btn btn-link btn-sm p-0" data-mark-all="Sudah dilakukan"><i class="bi bi-check2-all me-1"></i>Semua sudah dilakukan</button><button type="button" class="btn btn-link btn-sm p-0 text-muted" data-mark-all-na>Sisa = tidak diperlukan</button></div>
+        <% for (const t of allTasks) { const cur = taskMap[t.code] || {}; %>
+          <div class="task-row" data-task data-applies="<%= t.applies_to %>" data-field-wrap>
+            <div class="task-name"><%= t.name %></div>
+            <div class="btn-group btn-group-sm" role="group" aria-label="<%= t.name %>">
+              <% [['Sudah dilakukan','success','Sudah'],['Tidak diperlukan','secondary','Tidak perlu'],['Belum dilakukan','danger','Belum']].forEach(([v, tone, lb], i) => { const id = `t_${t.code}_${i}`; %>
+                <input type="radio" class="btn-check" name="tasks[<%= t.code %>][status]" id="<%= id %>" value="<%= v %>" <%= cur.status === v ? 'checked' : '' %> autocomplete="off">
+                <label class="btn btn-outline-<%= tone %>" for="<%= id %>"><%= lb %></label>
+              <% }) %>
+            </div>
+            <input type="text" class="form-control form-control-sm mt-1 <%= cur.notes ? '' : 'd-none' %>" name="tasks[<%= t.code %>][notes]" value="<%= cur.notes || '' %>" placeholder="Catatan" maxlength="255" data-task-note>
+            <button type="button" class="btn btn-link btn-sm p-0 text-muted" data-task-note-toggle title="Tambah catatan"><i class="bi bi-chat-left-dots"></i></button>
+          </div>
+        <% } %>
+        <div class="mt-3"><label class="form-label">Kondisi fisik perangkat<span class="req" data-req-complete>*</span></label>
+          <select class="form-select" name="physical_condition"><option value="">— Pilih —</option><% for (const p of A.PHYSICAL) { %><option <%= R.physical_condition === p ? 'selected' : '' %>><%= p %></option><% } %></select></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- F. Kondisi akhir -->
+  <div class="soft-card soft-final mb-3">
+    <div class="soft-title"><span class="ico"><i class="bi bi-flag"></i></span>Kondisi Akhir & Tindak Lanjut</div>
+    <div class="row g-3">
+      <div class="col-md-6"><label class="form-label">Kondisi akhir perangkat<span class="req" data-req-complete>*</span></label>
+        <select class="form-select" name="final_condition" data-final><option value="">— Pilih —</option><% for (const f of M.FINAL) { %><option <%= R.final_condition === f ? 'selected' : '' %>><%= f %></option><% } %></select></div>
+      <div class="col-md-6"><label class="form-label">Status tindak lanjut</label>
+        <select class="form-select" name="follow_up_status"><option value="">—</option><% for (const f of M.FOLLOW_STATUS) { %><option <%= R.follow_up_status === f ? 'selected' : '' %>><%= f %></option><% } %></select></div>
+      <div class="col-12"><label class="form-label">Catatan preventive maintenance<span class="req d-none" data-req-findings>*</span></label><textarea class="form-control" name="findings" rows="4" maxlength="5000" placeholder="Keluhan pengguna, temuan, tindakan yang dilakukan, rekomendasi / spare part yang dibutuhkan..."><%= R.findings || '' %></textarea>
+        <div class="form-text">Wajib diisi bila kondisi akhir bukan "Baik". Jadwal maintenance berikutnya dihitung otomatis.</div></div>
+    </div>
+  </div>
+
+  <!-- G. Dokumentasi -->
+  <div class="soft-card soft-doc mb-3" id="dokumentasi">
+    <div class="soft-title"><span class="ico"><i class="bi bi-camera"></i></span>Dokumentasi</div>
+    <% if (can('attachment.upload')) { %>
+    <div class="dropzone-hint"><label class="form-label">Foto / dokumen maintenance</label>
+      <input type="file" class="form-control" name="dokumentasi" accept="image/jpeg,image/png,image/webp,application/pdf" multiple data-max-mb="10" data-max-files="10">
+      <div class="form-text">Pilih sekaligus beberapa file (foto sebelum/sesudah, screenshot storage, PDF, bukti spare part). JPG/PNG/WEBP maks. 5 MB, PDF maks. 10 MB, hingga 10 file.</div></div>
+    <% } else { %><div class="text-muted small">Anda tidak memiliki izin mengunggah dokumentasi.</div><% } %>
+    <% if (isEdit && R.attachments.length) { %>
+      <div class="mt-3"><div class="fw-semibold small mb-2">Lampiran tersimpan</div><div class="row g-2">
+      <% for (const f of R.attachments) { %><div class="col-6 col-md-3"><div class="file-tile small">
+        <% if (f.mime_type.startsWith('image/')) { %><img src="/files/<%= f.id %>" class="thumb" alt="" loading="lazy"><% } else { %><div class="thumb d-grid text-danger" style="place-items:center"><i class="bi bi-file-earmark-pdf fs-2"></i></div><% } %>
+        <div class="text-truncate mt-1" title="<%= f.original_name %>"><%= f.original_name %></div>
+        <button type="button" class="btn btn-link btn-sm text-danger p-0" data-delete-attachment="/maintenance/<%= R.id %>/attachments/<%= f.id %>/delete"><i class="bi bi-trash"></i> Hapus</button>
+      </div></div><% } %></div></div>
+    <% } %>
+  </div>
+
+  <!-- H. Tombol -->
+  <div class="sticky-actions d-flex flex-wrap gap-2 justify-content-end">
+    <a href="<%= isEdit ? `/maintenance/${R.id}` : '/maintenance' %>" class="btn btn-light" data-cancel>Batal</a>
+    <% if (!isEdit || R.status !== 'Selesai') { %><button type="submit" name="action" value="draft" class="btn btn-outline-secondary" data-submit-action="draft" title="Simpan dulu, lanjutkan nanti"><i class="bi bi-file-earmark me-1"></i>Simpan Draft</button><% } %>
+    <button type="submit" name="action" value="complete_print" class="btn btn-outline-primary" data-submit-action="complete_print"><i class="bi bi-printer me-1"></i>Selesai &amp; Cetak</button>
+    <button type="submit" name="action" value="complete" class="btn btn-primary" data-submit-action="complete"><i class="bi bi-check2-circle me-1"></i>Simpan Selesai</button>
+  </div>
+</form>
+
+<template id="tplSSD"><%- include('_storage', { type: 'SSD', idx: '__IDX__', s: null, A }) %></template>
+<template id="tplHDD"><%- include('_storage', { type: 'HDD', idx: '__IDX__', s: null, A }) %></template>
+
+<!-- Modal konfirmasi tindak lanjut -->
+<div class="modal fade" id="followModal" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-dialog-centered modal-lg"><div class="modal-content">
+  <div class="modal-header"><h5 class="modal-title"><i class="bi bi-exclamation-triangle text-warning me-2"></i>Perangkat memerlukan tindak lanjut</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+  <div class="modal-body">
+    <div class="d-flex gap-2 align-items-center mb-3"><span>Hasil evaluasi:</span><span data-follow-status></span><span data-follow-priority></span></div>
+    <div class="fw-semibold small mb-1">Parameter bermasalah</div><ul class="small" data-follow-issues></ul>
+    <div class="fw-semibold small mb-1" data-follow-flags-title>Catatan</div><ul class="small" data-follow-flags></ul>
+    <div class="fw-semibold small mb-1">Rekomendasi tindakan</div><ul class="small" data-follow-recs></ul>
+    <div class="alert alert-info small mb-0">Bila disimpan sebagai Selesai, sistem membuat <strong>tindak lanjut</strong> otomatis dan mempersingkat jadwal berikutnya sesuai kebijakan.</div>
+  </div>
+  <div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Periksa kembali</button><button type="button" class="btn btn-warning" data-follow-confirm>Ya, simpan</button></div>
+</div></div></div>
+<%- include('../partials/bottom', { scripts: ['maintenance-form.js'] }) %>

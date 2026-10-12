@@ -1,0 +1,6 @@
+<div class="empty-state">
+  <i class="bi <%= typeof icon !== 'undefined' ? icon : 'bi-inbox' %>"></i>
+  <div class="title"><%= typeof heading !== 'undefined' ? heading : 'Belum ada data' %></div>
+  <div class="small"><%= typeof text !== 'undefined' ? text : '' %></div>
+  <% if (typeof action !== 'undefined' && action) { %><a href="<%= action.href %>" class="btn btn-primary btn-sm mt-3"><i class="bi bi-plus-lg me-1"></i><%= action.label %></a><% } %>
+</div>

@@ -1,0 +1,68 @@
+<%- include('../partials/top') %>
+<%
+  const level = (p) => p.stock <= 0 ? ['danger', 'Habis'] : p.stock <= p.min_stock ? ['warning', 'Menipis'] : ['success', 'Aman'];
+  const sign = (m) => (m.movement_type === 'KELUAR' ? '−' : m.qty >= 0 ? '+' : '−') + Math.abs(m.qty);
+  const tone = { MASUK: 'success', KELUAR: 'primary', KOREKSI: 'secondary' };
+%>
+<div class="row g-3 mb-3">
+  <div class="col-md-4 col-4"><a class="stat-link" href="/spare-parts"><div class="card stat-card stat-compact tone-purple"><div class="stat-icon"><i class="bi bi-box-seam"></i></div><div><div class="stat-value"><%= stats.total || 0 %></div><div class="stat-label">Jenis barang</div></div></div></a></div>
+  <div class="col-md-4 col-4"><a class="stat-link" href="/spare-parts?filter=menipis"><div class="card stat-card stat-compact tone-warn"><div class="stat-icon"><i class="bi bi-exclamation-triangle"></i></div><div><div class="stat-value"><%= stats.low || 0 %></div><div class="stat-label">Stok menipis</div></div></div></a></div>
+  <div class="col-md-4 col-4"><a class="stat-link" href="/spare-parts?filter=menipis"><div class="card stat-card stat-compact tone-crit"><div class="stat-icon"><i class="bi bi-x-octagon"></i></div><div><div class="stat-value"><%= stats.empty || 0 %></div><div class="stat-label">Habis</div></div></div></a></div>
+</div>
+
+<div class="row g-3">
+  <div class="col-xl-8">
+    <div class="card table-card">
+      <div class="table-toolbar">
+        <form method="get" class="d-flex gap-2 flex-grow-1" style="max-width:440px">
+          <input class="form-control" name="q" value="<%= q %>" placeholder="Cari nama barang / kategori">
+          <% if (filter) { %><input type="hidden" name="filter" value="<%= filter %>"><% } %>
+          <button class="btn btn-navy" title="Cari"><i class="bi bi-search"></i></button>
+        </form>
+        <% if (filter) { %><a class="btn btn-light btn-sm" href="/spare-parts"><i class="bi bi-x-lg me-1"></i>Tampilkan semua</a><% } %>
+        <% if (manage) { %><button type="button" class="btn btn-primary ms-auto" data-modal-form="#partAddModal" data-action="/spare-parts" data-title="Tambah barang" data-values='{"stock":0}'><i class="bi bi-plus-lg me-1"></i>Tambah barang</button><% } %>
+      </div>
+      <% if (!parts.length) { %>
+        <div class="card-body"><%- include('../partials/empty', { icon: 'bi-box-seam', heading: filter ? 'Tidak ada stok yang menipis' : (q ? 'Barang tidak ditemukan' : 'Belum ada spare part'), text: filter || q ? '' : 'Tambahkan barang seperti thermal paste, RAM, SSD, mouse, keyboard.' }) %></div>
+      <% } else { %>
+      <div class="table-responsive"><table class="table table-hover align-middle mb-0" data-parts>
+        <thead><tr><th>Barang</th><th class="text-end">Stok</th><th class="text-end d-none d-md-table-cell">Minimum</th><th class="d-none d-lg-table-cell">Terakhir dipakai</th><th></th></tr></thead>
+        <tbody><% for (const p of parts) { const [t, lb] = level(p); %><tr>
+          <td><a href="/spare-parts/<%= p.id %>" class="fw-semibold text-reset"><%= p.name %></a><div class="small text-muted"><%= p.category || 'Tanpa kategori' %></div></td>
+          <td class="text-end text-nowrap"><span class="fs-5 fw-bold"><%= p.stock %></span> <span class="small text-muted"><%= p.unit %></span><div><%- h.pill(lb, t) %></div></td>
+          <td class="text-end d-none d-md-table-cell"><%= p.min_stock %></td>
+          <td class="small d-none d-lg-table-cell"><%= p.last_used ? h.fmtDate(String(p.last_used).slice(0, 10)) : '-' %></td>
+          <td class="text-end text-nowrap">
+            <% if (manage) { %>
+            <button type="button" class="btn btn-soft btn-sm" title="Stok masuk" data-modal-form="#stockModal" data-action="/spare-parts/<%= p.id %>/stock" data-title="Stok masuk: <%= p.name %>" data-values='{"movement_type":"MASUK","qty":1}'><i class="bi bi-plus-lg"></i><span class="d-none d-xl-inline ms-1">Masuk</span></button>
+            <button type="button" class="btn btn-light btn-sm" title="Pakai" data-modal-form="#stockModal" data-action="/spare-parts/<%= p.id %>/stock" data-title="Pakai: <%= p.name %> (stok <%= p.stock %>)" data-values='{"movement_type":"KELUAR","qty":1}' <%= p.stock <= 0 ? 'disabled' : '' %>><i class="bi bi-dash-lg"></i><span class="d-none d-xl-inline ms-1">Pakai</span></button>
+            <div class="dropdown d-inline-block">
+              <button class="btn btn-light btn-sm" type="button" data-bs-toggle="dropdown" aria-label="Aksi lain"><i class="bi bi-three-dots"></i></button>
+              <div class="dropdown-menu dropdown-menu-end shadow border-0">
+                <a class="dropdown-item" href="/spare-parts/<%= p.id %>"><i class="bi bi-clock-history me-2"></i>Riwayat</a>
+                <button type="button" class="dropdown-item" data-modal-form="#stockModal" data-action="/spare-parts/<%= p.id %>/stock" data-title="Koreksi stok: <%= p.name %> (tercatat <%= p.stock %>)" data-values='<%= JSON.stringify({ movement_type: "KOREKSI", qty: p.stock }) %>'><i class="bi bi-calculator me-2"></i>Koreksi stok</button>
+                <button type="button" class="dropdown-item" data-modal-form="#partEditModal" data-action="/spare-parts/<%= p.id %>" data-title="Ubah: <%= p.name %>" data-values="<%= JSON.stringify({ name: p.name, category: p.category, unit: p.unit, min_stock: p.min_stock, notes: p.notes }) %>"><i class="bi bi-pencil me-2"></i>Ubah</button>
+                <div class="dropdown-divider"></div>
+                <button type="button" class="dropdown-item text-danger" data-post-url="/spare-parts/<%= p.id %>/delete" data-reload data-confirm-title="Hapus barang?" data-confirm-text="<%= p.name %> akan dihapus dari daftar. Riwayat pemakaiannya tetap tersimpan."><i class="bi bi-trash me-2"></i>Hapus</button>
+              </div>
+            </div>
+            <% } else { %><a class="btn btn-light btn-sm" href="/spare-parts/<%= p.id %>"><i class="bi bi-clock-history"></i></a><% } %>
+          </td></tr><% } %></tbody></table></div>
+      <% } %>
+    </div>
+  </div>
+  <div class="col-xl-4">
+    <div class="card"><div class="card-header"><i class="bi bi-clock-history me-1"></i>Riwayat terbaru</div><div class="card-body p-0">
+      <% if (!recent.length) { %><div class="p-3 small text-muted">Belum ada pergerakan stok.</div><% } %>
+      <% for (const m of recent) { %><div class="d-flex gap-2 align-items-start px-3 py-2 border-bottom small">
+        <%- h.pill(sign(m), tone[m.movement_type]) %>
+        <div class="flex-grow-1 min-w-0">
+          <div class="fw-semibold text-truncate"><%= m.name %></div>
+          <div class="text-muted text-truncate"><%= TYPES[m.movement_type] %><%= m.asset_code ? ` untuk ${m.asset_code}` : '' %><%= m.maintenance_no ? ` (${m.maintenance_no})` : '' %><%= m.note ? `: ${m.note}` : '' %></div>
+          <div class="text-muted"><%= h.fmtDateTime(m.created_at) %><%= m.user_name ? `, ${m.user_name}` : '' %></div>
+        </div></div><% } %>
+    </div></div>
+  </div>
+</div>
+<% if (manage) { %><%- include('_modals') %><% } %>
+<%- include('../partials/bottom') %>

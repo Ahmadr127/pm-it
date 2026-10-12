@@ -1,0 +1,34 @@
+<%- include('../partials/top') %>
+<div class="d-flex flex-wrap gap-2 align-items-center justify-content-between mb-3">
+  <div><h2 class="h5 mb-0">Pengguna PC & Perangkat</h2><div class="text-muted small">Cari perangkat berdasarkan nama pengguna, NIK, kode aset, departemen, unit kerja, atau lokasi.</div></div>
+  <div class="d-flex gap-2">
+    <div class="dropdown"><button class="btn btn-light" data-bs-toggle="dropdown"><i class="bi bi-download me-1"></i>Ekspor</button>
+      <div class="dropdown-menu dropdown-menu-end"><a class="dropdown-item" href="/employees/export.xlsx<%= h.buildQuery(query, { page: null }) %>">Excel (.xlsx)</a><a class="dropdown-item" href="/employees/export.csv<%= h.buildQuery(query, { page: null }) %>">CSV</a></div></div>
+    <% if (can('employee.manage')) { %><button class="btn btn-primary" data-modal-form="#empModal" data-action="/employees" data-title="Tambah Pengguna PC" data-values="<%= JSON.stringify({ status: 'Aktif', start_date: h.today(), usage_status: 'Aktif', assignment_role: 'PENGGUNA_UTAMA' }) %>"><i class="bi bi-person-plus me-1"></i>Tambah Pengguna</button><% } %>
+  </div>
+</div>
+<form class="filter-bar" method="get"><div class="row g-2 align-items-end">
+  <div class="col-lg-4"><label class="form-label small">Cari</label><div class="input-group"><span class="input-group-text"><i class="bi bi-search"></i></span><input class="form-control" name="q" value="<%= query.q || '' %>" placeholder="Nama, NIK, kode aset, hostname, departemen, lokasi..."></div></div>
+  <div class="col-lg-2 col-6"><label class="form-label small">Departemen</label><select class="form-select" name="department_id"><option value="">Semua</option><% for (const d of departments) { %><option value="<%= d.id %>" <%= String(query.department_id)===String(d.id)?'selected':'' %>><%= d.name %></option><% } %></select></div>
+  <div class="col-lg-2 col-6"><label class="form-label small">Unit kerja</label><select class="form-select" name="work_unit_id" data-tom><option value="">Semua</option><% for (const u of units) { %><option value="<%= u.id %>" <%= String(query.work_unit_id)===String(u.id)?'selected':'' %>><%= u.department_name %> › <%= u.name %></option><% } %></select></div>
+  <div class="col-lg-2 col-6"><label class="form-label small">Lokasi</label><select class="form-select" name="location_id"><option value="">Semua</option><% for (const l of locations) { %><option value="<%= l.id %>" <%= String(query.location_id)===String(l.id)?'selected':'' %>><%= locText(l) %></option><% } %></select></div>
+  <div class="col-lg-2 col-6"><label class="form-label small">Status</label><select class="form-select" name="status"><option value="">Semua</option><% for (const s of STATUS) { %><option <%= query.status===s?'selected':'' %>><%= s %></option><% } %></select></div>
+  <div class="col-12 d-flex gap-2"><button class="btn btn-navy"><i class="bi bi-funnel me-1"></i>Terapkan</button><a href="/employees" class="btn btn-light">Reset</a></div>
+</div></form>
+<div class="card table-card"><div class="table-responsive">
+  <% if (!rows.length) { %><%- include('../partials/empty', { icon: 'bi-people', heading: 'Tidak ada pengguna', text: 'Tidak ada data yang cocok.' }) %><% } else { %>
+  <table class="table table-hover"><thead><tr>
+    <%- h.sortTh('NIK', 'nik', query) %><%- h.sortTh('Nama / Jabatan', 'name', query) %><%- h.sortTh('Departemen', 'dept', query) %><%- h.sortTh('Unit Kerja', 'unit', query) %><th>Lokasi / Ruangan</th><th>Perangkat</th><%- h.sortTh('Status', 'status', query) %><th></th>
+  </tr></thead><tbody>
+  <% for (const e of rows) { %><tr>
+    <td class="mono small"><%= e.nik %></td>
+    <td><a href="/employees/<%= e.id %>" class="fw-semibold"><%= e.full_name %></a><div class="small text-muted"><%= e.position || '' %></div></td>
+    <td class="small"><%= e.department_name || '-' %></td><td class="small"><%= e.work_unit_name || '-' %></td>
+    <td class="small"><%= [e.location_name, e.location_building].filter(Boolean).join(' · ') || '-' %><div class="text-muted"><%= e.room ? `R. ${e.room}` : '' %></div></td>
+    <td><% if (!e.deviceList.length) { %><span class="text-muted small">-</span><% } %><% for (const d of e.deviceList) { %><a href="/assets/<%= d.id %>" class="code-chip d-inline-block mb-1 me-1" title="<%= d.type %><%= d.role === 'PIC_UNIT' ? ' (PIC unit)' : '' %>"><%= d.code %></a><% } %></td>
+    <td><%- h.pill(e.status, { Aktif: 'success', Dipindahkan: 'info', Dipinjamkan: 'warning', 'Tidak Aktif': 'dark' }[e.status]) %></td>
+    <td class="text-end"><a class="btn btn-light btn-sm" href="/employees/<%= e.id %>"><i class="bi bi-eye"></i></a></td>
+  </tr><% } %></tbody></table><% } %>
+</div><%- include('../partials/pager') %></div>
+<% if (can('employee.manage')) { %><%- include('_modal') %><% } %>
+<%- include('../partials/bottom', { scripts: ['employee-form.js'] }) %>

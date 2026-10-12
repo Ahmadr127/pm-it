@@ -1,0 +1,31 @@
+<%- include('../partials/top') %>
+<div class="row justify-content-center">
+  <div class="col-lg-6 col-md-8">
+    <div class="card mb-3"><div class="card-body">
+      <div class="text-center mb-3">
+        <div class="fw-bold fs-5"><i class="bi bi-qr-code-scan me-1"></i>Scan label QR perangkat</div>
+        <div class="text-muted small">Arahkan kamera ke label QR di casing PC. Hasilnya menampilkan pemilik terdaftar, riwayat pemegang & maintenance terakhir.</div>
+      </div>
+      <div class="scan-box mb-3 d-none" data-scan-box>
+        <video playsinline muted data-scan-video></video>
+        <div class="scan-frame"></div>
+      </div>
+      <canvas class="d-none" data-scan-canvas></canvas>
+      <div class="alert alert-light border small text-center mb-3" data-scan-status>Pilih cara scan di bawah.</div>
+      <div class="d-grid gap-2">
+        <button type="button" class="btn btn-primary btn-lg" data-scan-start><i class="bi bi-camera-video me-1"></i>Scan dengan kamera</button>
+        <button type="button" class="btn btn-outline-secondary d-none" data-scan-stop><i class="bi bi-stop-circle me-1"></i>Hentikan kamera</button>
+        <label class="btn btn-outline-primary btn-lg mb-0"><i class="bi bi-camera me-1"></i>Foto label QR
+          <input type="file" accept="image/*" capture="environment" class="d-none" data-scan-photo></label>
+      </div>
+      <div class="form-text text-center mt-2">Bila tombol kamera tidak berfungsi (mis. dibuka lewat alamat http), gunakan <strong>Foto label QR</strong>.</div>
+    </div></div>
+    <div class="card"><div class="card-body">
+      <form method="get" action="/s" class="d-flex gap-2">
+        <input class="form-control" name="q" placeholder="Atau ketik kode aset / hostname / serial" required>
+        <button class="btn btn-navy"><i class="bi bi-search"></i></button>
+      </form>
+    </div></div>
+  </div>
+</div>
+<%- include('../partials/bottom') %>

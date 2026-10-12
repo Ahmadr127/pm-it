@@ -1,0 +1,3 @@
+# Aplikasi PM-IT dijalankan oleh Node.js (http://localhost:3000), BUKAN oleh Apache.
+# Blokir semua akses Apache ke folder ini agar .env, database, dan file unggahan tidak dapat dibuka dari browser.
+Require all denied

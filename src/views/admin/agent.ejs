@@ -1,0 +1,22 @@
+<%- include('../partials/top') %>
+<% if (newToken) { %><div class="alert alert-success"><div class="fw-bold mb-1"><i class="bi bi-key me-1"></i>Token baru — salin sekarang, tidak akan ditampilkan lagi:</div><code class="d-block p-2 bg-white rounded user-select-all" style="word-break:break-all"><%= newToken %></code></div><% } %>
+<div class="alert alert-info small"><i class="bi bi-info-circle me-1"></i>Agent lokal Windows (contoh di folder <code>agent/</code>) mengirim data ke <code>POST /api/agent/readings</code> dengan header <code>Authorization: Bearer &lt;token&gt;</code>. Ketersediaan suhu CPU bergantung pada sensor, driver, dan dukungan library — parameter yang tidak terbaca disimpan sebagai <strong>NULL</strong>. Data masuk ke staging dan baru dipakai di form setelah teknisi memilih "Gunakan data agent".</div>
+<div class="row g-3">
+  <div class="col-xl-4"><div class="card"><div class="card-header">Token agent</div><div class="card-body">
+    <form method="post" action="/admin/agent/tokens" data-ajax class="d-flex gap-2 mb-3" novalidate><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input class="form-control" name="name" maxlength="100" placeholder="Nama, mis. Agent Gedung A" required><button class="btn btn-primary"><i class="bi bi-plus-lg"></i></button></form>
+    <% if (!tokens.length) { %><div class="text-muted small">Belum ada token.</div><% } %>
+    <% for (const t of tokens) { %><div class="d-flex justify-content-between align-items-center border-bottom py-2 small"><div><div class="fw-semibold"><%= t.name %></div><div class="text-muted mono">pmit_<%= t.token_prefix %>…</div><div class="text-muted">Terakhir dipakai: <%= h.fmtDateTime(t.last_used_at) %></div></div>
+      <div><% if (t.is_active) { %><form method="post" action="/admin/agent/tokens/<%= t.id %>/revoke" data-ajax data-reload data-confirm="Nonaktifkan token <%= t.name %>? Agent yang memakainya tidak dapat mengirim data lagi." data-confirm-ok="Nonaktifkan"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="btn btn-outline-danger btn-sm">Cabut</button></form><% } else { %><%- h.pill('Nonaktif','dark') %><% } %></div></div><% } %>
+  </div></div></div>
+  <div class="col-xl-8"><div class="card table-card"><div class="card-header">Data masuk dari agent (100 terakhir)</div><div class="table-responsive">
+    <% if (!readings.length) { %><%- include('../partials/empty', { icon: 'bi-cpu', heading: 'Belum ada data dari agent', text: 'Form manual tetap menjadi jalur utama.' }) %><% } else { %>
+    <table class="table"><thead><tr><th>Diterima</th><th>Perangkat</th><th>Aset cocok</th><th>Validasi</th><th>Catatan</th><th>Dipakai</th></tr></thead><tbody>
+    <% for (const r of readings) { %><tr><td class="small text-nowrap"><%= h.fmtDateTime(r.received_at) %><div class="text-muted">dibaca <%= h.fmtDateTime(r.collected_at) %></div></td>
+      <td class="small"><%= r.reported_hostname || '-' %><div class="mono text-muted"><%= r.reported_serial || '' %></div></td>
+      <td><% if (r.asset_code) { %><a class="code-chip" href="/assets/<%= r.asset_id %>"><%= r.asset_code %></a><% } else { %>-<% } %></td>
+      <td><%- h.pill(r.validation_status, { VALID: 'success', SEBAGIAN: 'warning', DITOLAK: 'danger' }[r.validation_status]) %></td>
+      <td class="small text-muted" style="white-space:pre-line;max-width:320px"><%= r.validation_notes || '' %></td>
+      <td class="small"><% if (r.maintenance_no) { %><a href="/maintenance/<%= r.used_in_record_id %>" class="mono"><%= r.maintenance_no %></a><% } else { %>-<% } %></td></tr><% } %>
+    </tbody></table><% } %></div></div></div>
+</div>
+<%- include('../partials/bottom') %>

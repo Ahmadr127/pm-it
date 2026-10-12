@@ -1,0 +1,46 @@
+    </main>
+    <footer class="footer d-flex justify-content-between flex-wrap gap-2">
+      <span>© <%= new Date().getFullYear() %> <%= app.company %> · Tim IT</span>
+      <span><%= app.name %></span>
+    </footer>
+  </div>
+</div>
+
+<% const bn = [
+  can('dashboard.view') && { href: '/', icon: 'bi-grid-1x2', label: 'Beranda', on: path === '/' },
+  can('schedule.view') && { href: '/schedules', icon: 'bi-calendar2-week', label: 'Jadwal', on: /^\/schedules/.test(path) },
+  can('asset.view') && { href: '/scan', icon: 'bi-qr-code-scan', label: 'Scan', on: /^\/(scan|s)(\/|$)/.test(path), scan: true },
+  can('maintenance.view') && { href: can('maintenance.create') ? '/maintenance/new' : '/maintenance', icon: 'bi-clipboard2-plus', label: can('maintenance.create') ? 'Isi PM' : 'Maintenance', on: /^\/maintenance/.test(path) },
+].filter(Boolean); %>
+<nav class="bottom-nav" aria-label="Navigasi cepat" style="grid-template-columns:repeat(<%= bn.length + 1 %>,1fr)">
+  <% for (const it of bn) { %><a href="<%= it.href %>" class="<%= it.on ? 'active' : '' %><%= it.scan ? ' bn-scan' : '' %>"<%= it.on ? ' aria-current=page' : '' %>><i class="bi <%= it.icon %>"></i><span><%= it.label %></span></a><% } %>
+  <button type="button" data-sidebar-toggle><i class="bi bi-list"></i><span>Menu</span></button>
+</nav>
+
+<!-- Modal konfirmasi global (hapus / tindakan berisiko) -->
+<div class="modal fade" id="confirmModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-body p-4 text-center">
+        <div class="mx-auto mb-3 rounded-circle d-grid" style="width:56px;height:56px;place-items:center;background:var(--crit-soft);color:var(--crit)"><i class="bi bi-exclamation-triangle fs-4"></i></div>
+        <h5 class="mb-2" data-confirm-title>Konfirmasi</h5>
+        <p class="text-muted mb-0" data-confirm-text>Apakah Anda yakin?</p>
+      </div>
+      <div class="modal-footer justify-content-center border-0 pt-0 pb-4">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Batal</button>
+        <button type="button" class="btn btn-danger" data-confirm-ok>Ya, lanjutkan</button>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="toast-container position-fixed top-0 end-0 p-3" id="toastBox"></div>
+
+<script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+<script src="/vendor/tom-select/js/tom-select.complete.min.js"></script>
+<% if (typeof charts !== 'undefined' && charts) { %><script src="/vendor/chartjs/chart.umd.min.js"></script><% } %>
+<script src="/static/js/app.js?v=<%= typeof assetVersion !== 'undefined' ? assetVersion : '' %>"></script>
+<script src="/static/js/ui.js?v=<%= typeof assetVersion !== 'undefined' ? assetVersion : '' %>"></script>
+<script src="/static/js/pwa.js?v=<%= typeof assetVersion !== 'undefined' ? assetVersion : '' %>"></script>
+<% for (const s of (typeof scripts !== 'undefined' ? scripts : [])) { %><script src="/static/js/<%= s %>?v=<%= typeof assetVersion !== 'undefined' ? assetVersion : '' %>"></script><% } %>
+</body>
+</html>
