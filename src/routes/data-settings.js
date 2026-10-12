@@ -37,8 +37,8 @@ router.get('/', async (req, res) => {
     tab === 'kode'
       ? db.query(`SELECT a.id, a.asset_code, a.hostname, a.device_type, e.full_name AS employee_name, l.name AS loc_name
                     FROM assets a LEFT JOIN employees e ON e.id=a.current_employee_id LEFT JOIN locations l ON l.id=a.location_id
-                   WHERE a.deleted_at IS NULL ${q ? 'AND (a.asset_code LIKE ? OR a.hostname LIKE ? OR IFNULL(e.full_name,\'\') LIKE ? OR IFNULL(l.name,\'\') LIKE ?)' : ''}
-                   ORDER BY (a.asset_code REGEXP '^AST-') DESC, a.asset_code LIMIT 300`, q ? [like, like, like, like] : [])
+                   WHERE a.deleted_at IS NULL ${q ? 'AND (a.asset_code LIKE ? OR a.hostname LIKE ? OR COALESCE(e.full_name,\'\') LIKE ? OR COALESCE(l.name,\'\') LIKE ?)' : ''}
+                   ORDER BY (a.asset_code ${db.isPg ? '~' : 'REGEXP'} '^AST-') DESC, a.asset_code LIMIT 300`, q ? [like, like, like, like] : [])
       : [],
   ]);
   res.render('data-settings/index', { title: 'Pengaturan Data', tab, q, units, locations, depts, assets, locText });
@@ -107,14 +107,14 @@ const locSchema = {
 async function locData(body, selfId = null) {
   const v = validate(body, locSchema);
   if (!v.ok) throw new ValidationError(v.errors);
-  const dup = await db.one(`SELECT id FROM locations WHERE name=? AND IFNULL(building,'')=? AND IFNULL(room,'')=? AND deleted_at IS NULL AND id<>?`,
+  const dup = await db.one(`SELECT id FROM locations WHERE name=? AND COALESCE(building,'')=? AND COALESCE(room,'')=? AND deleted_at IS NULL AND id<>?`,
     [v.data.name, v.data.building || '', v.data.room || '', selfId || 0]);
   if (dup) throw new ValidationError({ name: 'Lokasi dengan nama, gedung & ruangan yang sama sudah ada.' });
   return v.data;
 }
 router.post('/locations', async (req, res) => {
   const d = await locData(req.body);
-  const old = await db.one(`SELECT id FROM locations WHERE name=? AND IFNULL(building,'')=? AND IFNULL(room,'')=? AND deleted_at IS NOT NULL`, [d.name, d.building || '', d.room || '']);
+   const old = await db.one(`SELECT id FROM locations WHERE name=? AND COALESCE(building,'')=? AND COALESCE(room,'')=? AND deleted_at IS NOT NULL`, [d.name, d.building || '', d.room || '']);
   let id;
   if (old) { await db.query('UPDATE locations SET deleted_at=NULL, is_active=1, floor=? WHERE id=?', [d.floor, old.id]); id = old.id; }
   else id = (await db.query('INSERT INTO locations (name, building, floor, room, is_active) VALUES (?,?,?,?,1)', [d.name, d.building, d.floor, d.room])).insertId;
@@ -155,7 +155,7 @@ router.post('/asset-code/:id', async (req, res) => {
   if (dup) throw new ValidationError({ asset_code: `Kode ${code} sudah dipakai perangkat lain (${dup.hostname}${dup.deleted_at ? ', sudah dihapus' : ''}).` });
   await db.transaction(async (t) => {
     // Nama perangkat yang sama dengan kode lama (diberi otomatis) ikut diganti
-    await t.query('UPDATE assets SET asset_code=?, hostname=IF(hostname=?, ?, hostname), updated_by=? WHERE id=?', [code, a.asset_code, code, req.user.id, a.id]);
+    await t.query('UPDATE assets SET asset_code=?, hostname=CASE WHEN hostname=? THEN ? ELSE hostname END, updated_by=? WHERE id=?', [code, a.asset_code, code, req.user.id, a.id]);
     await audit.log(req, 'UPDATE', { entity: 'assets', id: a.id, description: `Kode aset ${a.asset_code} diganti menjadi ${code}`, before: { asset_code: a.asset_code }, after: { asset_code: code } }, t);
   });
   notifications.clear();

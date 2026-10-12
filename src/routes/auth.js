@@ -11,6 +11,12 @@ const { ValidationError } = require('../utils/validate');
 
 const router = express.Router();
 
+function addMinutes(date, minutes) {
+  const pad = (n) => String(n).padStart(2, '0');
+  const d = new Date(date.getTime() + minutes * 60000);
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: config.isTest ? 1000 : 30,
@@ -45,8 +51,10 @@ router.post('/login', loginLimiter, async (req, res) => {
   if (!ok) {
     const attempts = user.failed_attempts + 1;
     const lock = attempts >= config.login.maxAttempts;
-    await db.query('UPDATE users SET failed_attempts = ?, locked_until = IF(?, DATE_ADD(NOW(), INTERVAL ? MINUTE), NULL) WHERE id = ?',
-      [lock ? 0 : attempts, lock, config.login.lockMinutes, user.id]);
+    // Hitung di JS (waktu lokal proses) agar sama di MySQL & PostgreSQL.
+    const lockedUntil = lock ? addMinutes(new Date(), config.login.lockMinutes) : null;
+    await db.query('UPDATE users SET failed_attempts = ?, locked_until = ? WHERE id = ?',
+      [lock ? 0 : attempts, lockedUntil, user.id]);
     await audit.log(req, lock ? 'LOGIN_LOCKED' : 'LOGIN_FAILED', { entity: 'users', id: user.id, description: `Login gagal untuk ${username}` });
     return fail(lock ? `Akun dikunci ${config.login.lockMinutes} menit karena ${config.login.maxAttempts}x percobaan gagal.` : 'Username atau password salah.');
   }

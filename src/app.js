@@ -2,7 +2,6 @@
 const path = require('path');
 const express = require('express');
 const session = require('express-session');
-const MySQLStore = require('express-mysql-session')(session);
 const helmet = require('helmet');
 const config = require('./config');
 const { pool } = require('./config/db');
@@ -102,7 +101,14 @@ function createApp() {
   app.use(express.urlencoded({ extended: true, limit: '2mb', parameterLimit: 2000 }));
   app.use(express.json({ limit: '2mb' }));
 
-  const store = new MySQLStore({ createDatabaseTable: false, clearExpired: true, checkExpirationInterval: 15 * 60000, expiration: 12 * 3600 * 1000, endConnectionOnClose: false }, pool);
+  let store;
+  if (config.db.client === 'pgsql') {
+    const PgStore = require('connect-pg-simple')(session);
+    store = new PgStore({ pool, createTableIfMissing: true });
+  } else {
+    const MySQLStore = require('express-mysql-session')(session);
+    store = new MySQLStore({ createDatabaseTable: false, clearExpired: true, checkExpirationInterval: 15 * 60000, expiration: 12 * 3600 * 1000, endConnectionOnClose: false }, pool);
+  }
   app.locals.sessionStore = store;
   app.use(session({
     name: 'pmit.sid',

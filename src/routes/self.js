@@ -27,7 +27,7 @@ router.get('/', can('self.devices'), async (req, res) => {
       [complaints, followUps] = await Promise.all([
         db.query('SELECT c.*, a.asset_code FROM user_complaints c JOIN assets a ON a.id=c.asset_id WHERE c.reporter_user_id=? ORDER BY c.created_at DESC LIMIT 30', [req.user.id]),
         db.query(`SELECT f.id, f.title, f.status, f.priority, f.target_date, f.updated_at, a.asset_code FROM follow_up_actions f JOIN assets a ON a.id=f.asset_id
-                   WHERE f.asset_id IN (?) AND f.deleted_at IS NULL ORDER BY FIELD(f.status,'Terbuka','Dalam Proses','Menunggu Sparepart','Selesai','Dibatalkan'), f.updated_at DESC LIMIT 30`, [ids]),
+                   WHERE f.asset_id IN (?) AND f.deleted_at IS NULL ORDER BY ${db.orderField('f.status', ['Terbuka', 'Dalam Proses', 'Menunggu Sparepart', 'Selesai', 'Dibatalkan'])}, f.updated_at DESC LIMIT 30`, [ids]),
       ]);
     }
   }

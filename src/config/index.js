@@ -20,8 +20,9 @@ const config = {
   companyName: process.env.COMPANY_NAME || 'Perusahaan',
   appUrl: process.env.APP_URL || 'http://localhost:3000',
   db: {
+    client: (process.env.DB_CLIENT || 'mysql').toLowerCase() === 'pgsql' ? 'pgsql' : 'mysql',
     host: process.env.DB_HOST || '127.0.0.1',
-    port: int(process.env.DB_PORT, 3306),
+    port: int(process.env.DB_PORT, (process.env.DB_CLIENT || '').toLowerCase() === 'pgsql' ? 5432 : 3306),
     database: process.env.DB_NAME || 'pm_asset',
     user: process.env.DB_USER || 'root',
     password: process.env.DB_PASSWORD || '',
@@ -46,6 +47,8 @@ const config = {
     dir: resolveDir(process.env.BACKUP_DIR, 'storage/backups'),
     mysqldump: process.env.MYSQLDUMP_PATH || 'mysqldump',
     mysql: process.env.MYSQL_PATH || 'mysql',
+    pgdump: process.env.PGDUMP_PATH || 'pg_dump',
+    psql: process.env.PSQL_PATH || 'psql',
     retentionDays: int(process.env.BACKUP_RETENTION_DAYS, 30),
   },
 };

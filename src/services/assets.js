@@ -75,7 +75,7 @@ function filterSql(q) {
   }
   const eq = { device_type: 'a.device_type', asset_status: 'a.asset_status', health: 'a.current_health_status', department_id: 'a.current_department_id', work_unit_id: 'a.current_work_unit_id', location_id: 'a.location_id' };
   for (const [k, col] of Object.entries(eq)) if (q[k]) { where.push(`${col} = ?`); params.push(q[k]); }
-  if (q.due === 'overdue') { where.push('a.next_maintenance_date < CURDATE()'); }
+  if (q.due === 'overdue') { where.push('a.next_maintenance_date < CURRENT_DATE'); }
   if (q.due === 'never') { where.push('a.last_maintenance_date IS NULL'); }
   return { where: where.join(' AND '), params };
 }

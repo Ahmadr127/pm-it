@@ -30,7 +30,7 @@ router.get('/', can('sparepart.view'), async (req, res) => {
   const q = String(req.query.q || '').trim();
   const filter = req.query.filter === 'menipis' ? 'menipis' : '';
   const where = ['p.deleted_at IS NULL']; const params = [];
-  if (q) { where.push('(p.name LIKE ? OR IFNULL(p.category,\'\') LIKE ?)'); params.push(`%${h.likeEscape(q)}%`, `%${h.likeEscape(q)}%`); }
+  if (q) { where.push('(p.name LIKE ? OR COALESCE(p.category,\'\') LIKE ?)'); params.push(`%${h.likeEscape(q)}%`, `%${h.likeEscape(q)}%`); }
   if (filter) where.push('p.stock <= p.min_stock');
   const [parts, stats, recent] = await Promise.all([
     db.query(`SELECT p.*, (SELECT MAX(m.created_at) FROM spare_part_movements m WHERE m.spare_part_id=p.id AND m.movement_type='KELUAR') AS last_used

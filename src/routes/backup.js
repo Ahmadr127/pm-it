@@ -76,7 +76,7 @@ router.post('/settings', async (req, res) => {
   }
   if (Object.keys(v.errors).length) throw new ValidationError(v.errors);
   const before = await backup.conf();
-  await db.query("INSERT INTO app_settings (setting_key, setting_value) VALUES ('backup_copy_dir', ?) ON DUPLICATE KEY UPDATE setting_value=VALUES(setting_value)", [copy]);
+  await db.upsert('app_settings', 'setting_key', { setting_key: 'backup_copy_dir', setting_value: copy });
   settings.invalidate();
   await audit.log(req, 'UPDATE', { entity: 'app_settings', ...audit.diff({ backup_copy_dir: before.backup_copy_dir }, { backup_copy_dir: copy }) });
   res.done(copy ? `Setiap backup akan disalin juga ke ${copy}.` : 'Folder salinan dikosongkan.', '/admin/backup');

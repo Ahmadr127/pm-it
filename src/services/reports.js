@@ -110,13 +110,13 @@ async function run(type, q) {
     const f = assetFilters(q);
     const rows = await db.query(`SELECT a.id, a.asset_code, a.hostname, a.device_type, a.current_health_status, e.full_name employee_name, d.name department_name, w.name work_unit_name,
          lr.maintenance_no, lr.maintenance_date, lr.final_condition, lr.findings, lr.recommendation, lr.spare_parts_needed, tu.full_name technician,
-         (SELECT GROUP_CONCAT(CONCAT('[',f.priority,'] ',f.title,' (',f.status,')') SEPARATOR '\n') FROM follow_up_actions f WHERE f.asset_id=a.id AND f.deleted_at IS NULL AND f.status NOT IN ('Selesai','Dibatalkan')) follow_ups
+         (SELECT ${db.groupConcat(`CONCAT('[',f.priority,'] ',f.title,' (',f.status,')')`, '\n')} FROM follow_up_actions f WHERE f.asset_id=a.id AND f.deleted_at IS NULL AND f.status NOT IN ('Selesai','Dibatalkan')) follow_ups
        FROM assets a
        LEFT JOIN maintenance_records lr ON lr.id = (SELECT r.id FROM maintenance_records r WHERE r.asset_id=a.id AND r.status='Selesai' AND r.deleted_at IS NULL ORDER BY r.maintenance_date DESC, r.id DESC LIMIT 1)
        LEFT JOIN users tu ON tu.id=lr.technician_user_id LEFT JOIN employees e ON e.id=a.current_employee_id LEFT JOIN departments d ON d.id=a.current_department_id LEFT JOIN work_units w ON w.id=a.current_work_unit_id
        WHERE ${f.where} AND a.asset_status <> 'Nonaktif' AND (lr.final_condition IN ('Perlu Perbaikan','Kritis') OR a.current_health_status='KRITIS'
              OR EXISTS (SELECT 1 FROM follow_up_actions f WHERE f.asset_id=a.id AND f.deleted_at IS NULL AND f.status NOT IN ('Selesai','Dibatalkan') AND f.priority IN ('Tinggi','Kritis')))
-       ORDER BY FIELD(a.current_health_status,'KRITIS','PERHATIAN','BELUM_DIEVALUASI','BAIK'), a.asset_code`, f.params);
+       ORDER BY ${db.orderField('a.current_health_status', ['KRITIS', 'PERHATIAN', 'BELUM_DIEVALUASI', 'BAIK'])}, a.asset_code`, f.params);
     return { title: TYPES[type], rows, summary: [`Total perangkat: ${rows.length}`], signature: true, columns: [
       { header: 'Aset', value: (r) => `${r.asset_code}\n${r.hostname}`, w: 1.1 }, { header: 'Pengguna / Departemen', value: (r) => [r.employee_name, r.department_name].filter(Boolean).join('\n') || '-', w: 1.2 },
       { header: 'Kondisi', value: (r) => LEVEL_LABEL[r.current_health_status], w: 0.8 }, { header: 'Kondisi akhir terakhir', value: (r) => r.final_condition || '-', w: 0.9 },
@@ -134,7 +134,7 @@ async function run(type, q) {
        JOIN maintenance_storage_readings s ON s.maintenance_record_id=lr.id
        LEFT JOIN employees e ON e.id=a.current_employee_id LEFT JOIN departments d ON d.id=a.current_department_id
        WHERE ${f.where} AND a.asset_status <> 'Nonaktif' AND (s.evaluated_level='KRITIS' OR s.smart_status='Kritis' ${q.include_attention === '1' ? "OR s.evaluated_level='PERHATIAN'" : ''})
-       ORDER BY FIELD(s.evaluated_level,'KRITIS','PERHATIAN'), s.health_percent IS NULL, s.health_percent, a.asset_code`, f.params);
+       ORDER BY ${db.orderField('s.evaluated_level', ['KRITIS', 'PERHATIAN'])}, s.health_percent IS NULL, s.health_percent, a.asset_code`, f.params);
     return { title: TYPES[type], rows, summary: [`Total storage: ${rows.length}`, 'Kriteria: evaluasi KRITIS (health di bawah batas kritis threshold) atau SMART Kritis pada maintenance terakhir'], signature: true, columns: [
       { header: 'Aset', value: (r) => `${r.asset_code}\n${r.hostname}`, w: 1.1 }, { header: 'Pengguna / Departemen', value: (r) => [r.employee_name, r.department_name].filter(Boolean).join('\n') || '-', w: 1.2 },
       { header: 'Storage', value: (r) => `${r.storage_type} ${r.interface || ''}\n${[r.brand, r.model].filter(Boolean).join(' ')}`, w: 1.4 }, { header: 'Serial', key: 'serial_number', w: 1 },

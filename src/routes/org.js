@@ -29,7 +29,7 @@ router.get('/', can('master.view'), async (req, res) => {
   const [depts, units, locs] = await Promise.all([
     db.query(`SELECT x.*, (SELECT COUNT(*) FROM work_units w WHERE w.department_id=x.id AND w.deleted_at IS NULL) AS unit_count,
                 (SELECT COUNT(*) FROM employees e WHERE e.department_id=x.id AND e.deleted_at IS NULL) AS emp_count
-               FROM departments x WHERE x.deleted_at IS NULL ${act} AND (x.name LIKE ? OR IFNULL(x.code,'') LIKE ?) ORDER BY x.name`, [like, like]),
+               FROM departments x WHERE x.deleted_at IS NULL ${act} AND (x.name LIKE ? OR COALESCE(x.code,'') LIKE ?) ORDER BY x.name`, [like, like]),
     db.query(`SELECT x.*, d.name AS department_name, l.name AS loc_name, l.building, l.room,
                 COALESCE(e.full_name, x.pic_name) AS pic_display,
                 (SELECT COUNT(*) FROM asset_assignments aa WHERE aa.work_unit_id=x.id AND aa.is_current=1) AS device_count
@@ -37,7 +37,7 @@ router.get('/', can('master.view'), async (req, res) => {
                LEFT JOIN locations l ON l.id=x.location_id LEFT JOIN employees e ON e.id=x.pic_employee_id
               WHERE x.deleted_at IS NULL ${act} AND (x.name LIKE ? OR d.name LIKE ?) ORDER BY d.name, x.name`, [like, like]),
     db.query(`SELECT x.*, (SELECT COUNT(*) FROM assets a WHERE a.location_id=x.id AND a.deleted_at IS NULL) AS asset_count
-               FROM locations x WHERE x.deleted_at IS NULL ${act} AND (x.name LIKE ? OR IFNULL(x.building,'') LIKE ? OR IFNULL(x.room,'') LIKE ?)
+               FROM locations x WHERE x.deleted_at IS NULL ${act} AND (x.name LIKE ? OR COALESCE(x.building,'') LIKE ? OR COALESCE(x.room,'') LIKE ?)
               ORDER BY x.name, x.building, x.room`, [like, like, like]),
   ]);
   res.render('org/index', { title: 'Master Unit Kerja', tab, q, showInactive, depts, units, locs, ...(await lookups()), locText });

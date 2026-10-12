@@ -42,8 +42,8 @@ router.get('/search', async (req, res) => {
          LEFT JOIN work_units w ON w.id=a.current_work_unit_id
          LEFT JOIN asset_assignments aa ON aa.asset_id=a.id AND aa.is_current=1 AND aa.assignment_role='PENGGUNA_UTAMA'
         WHERE a.deleted_at IS NULL
-          AND (a.asset_code LIKE ? OR a.hostname LIKE ? OR IFNULL(a.serial_number,'') LIKE ? OR IFNULL(a.ip_address,'') LIKE ?
-               OR IFNULL(e.full_name,'') LIKE ? OR IFNULL(aa.room,'') LIKE ? OR IFNULL(l.name,'') LIKE ? OR IFNULL(w.name,'') LIKE ?)
+          AND (a.asset_code LIKE ? OR a.hostname LIKE ? OR COALESCE(a.serial_number,'') LIKE ? OR COALESCE(a.ip_address,'') LIKE ?
+               OR COALESCE(e.full_name,'') LIKE ? OR COALESCE(aa.room,'') LIKE ? OR COALESCE(l.name,'') LIKE ? OR COALESCE(w.name,'') LIKE ?)
         ORDER BY (a.asset_code = ?) DESC, (a.asset_code LIKE ?) DESC, a.asset_code LIMIT 8`,
       [like, like, like, like, like, like, like, like, q, `${h.likeEscape(q)}%`]) : [],
     has(req.user, 'employee.view') ? db.query(

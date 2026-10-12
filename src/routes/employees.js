@@ -64,7 +64,7 @@ function filters(q) {
 }
 const FROM = `FROM employees e LEFT JOIN departments d ON d.id=e.department_id LEFT JOIN work_units wu ON wu.id=e.work_unit_id LEFT JOIN locations l ON l.id=e.location_id`;
 const COLS = `e.*, d.name AS department_name, wu.name AS work_unit_name, l.name AS location_name, l.building AS location_building,
-  (SELECT GROUP_CONCAT(CONCAT(a.id,'|',a.asset_code,'|',a.device_type,'|',aa.assignment_role) SEPARATOR ';') FROM asset_assignments aa JOIN assets a ON a.id=aa.asset_id AND a.deleted_at IS NULL
+  (SELECT ${db.groupConcat(`CONCAT(a.id,'|',a.asset_code,'|',a.device_type,'|',aa.assignment_role)`, ';')} FROM asset_assignments aa JOIN assets a ON a.id=aa.asset_id AND a.deleted_at IS NULL
      WHERE aa.employee_id=e.id AND aa.is_current=1) AS devices`;
 const SORTS = { name: 'e.full_name', nik: 'e.nik', dept: 'd.name', unit: 'wu.name', status: 'e.status', updated: 'e.updated_at' };
 

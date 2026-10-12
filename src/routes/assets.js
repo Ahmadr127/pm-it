@@ -368,7 +368,7 @@ router.post('/:id/delete', can('asset.delete'), async (req, res) => {
   if (!a) throw notFound();
   await db.transaction(async (t) => {
     await t.query('UPDATE assets SET deleted_at=NOW(), updated_by=? WHERE id=?', [req.user.id, a.id]);
-    await t.query("UPDATE maintenance_schedules SET status='Dibatalkan', notes=CONCAT(IFNULL(notes,''),' [aset dihapus]') WHERE asset_id=? AND status IN ('Terjadwal','Ditunda')", [a.id]);
+    await t.query("UPDATE maintenance_schedules SET status='Dibatalkan', notes=CONCAT(COALESCE(notes,''),' [aset dihapus]') WHERE asset_id=? AND status IN ('Terjadwal','Ditunda')", [a.id]);
     await audit.log(req, 'DELETE', { entity: 'assets', id: a.id, description: `Aset ${a.asset_code} dihapus (soft delete, riwayat tetap tersimpan)` }, t);
   });
   res.done(`Aset ${a.asset_code} dihapus. Riwayat maintenance tetap tersimpan.`, '/assets');

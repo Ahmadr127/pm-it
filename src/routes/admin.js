@@ -20,8 +20,8 @@ const DEVICE_TYPES = ['Desktop PC', 'Laptop', 'Workstation', 'Lainnya'];
 router.get('/thresholds', can('threshold.manage'), async (req, res) => {
   const [thresholds, intervals, tasks] = await Promise.all([
     db.query(`SELECT t.*, u.full_name AS updater FROM hardware_thresholds t LEFT JOIN users u ON u.id=t.updated_by
-               ORDER BY FIELD(t.parameter,'CPU_TEMP','SSD_TEMP','HDD_TEMP','SSD_HEALTH','HDD_HEALTH','BATTERY_HEALTH'), t.device_type IS NOT NULL, t.interface IS NOT NULL, t.brand IS NOT NULL, t.id`),
-    db.query("SELECT * FROM maintenance_intervals ORDER BY FIELD(device_type,'Desktop PC','Laptop','Workstation','Lainnya')"),
+               ORDER BY ${db.orderField('t.parameter', ['CPU_TEMP', 'SSD_TEMP', 'HDD_TEMP', 'SSD_HEALTH', 'HDD_HEALTH', 'BATTERY_HEALTH'])}, t.device_type IS NOT NULL, t.interface IS NOT NULL, t.brand IS NOT NULL, t.id`),
+    db.query('SELECT * FROM maintenance_intervals ORDER BY ' + db.orderField('device_type', ['Desktop PC', 'Laptop', 'Workstation', 'Lainnya'])),
     db.query('SELECT * FROM task_definitions ORDER BY sort_order, id'),
   ]);
   res.render('admin/thresholds', { title: 'Threshold Hardware & Interval Maintenance', thresholds, intervals, tasks, PARAMS, DEVICE_TYPES });
@@ -131,7 +131,7 @@ router.post('/settings', can('settings.manage'), async (req, res) => {
   if (!v.data.company_name) delete v.data.company_name;
   else require('../config').companyName = v.data.company_name;
   const before = await settings.all();
-  for (const [k, val] of Object.entries(v.data)) await db.query('INSERT INTO app_settings (setting_key, setting_value) VALUES (?,?) ON DUPLICATE KEY UPDATE setting_value=VALUES(setting_value)', [k, String(val)]);
+  for (const [k, val] of Object.entries(v.data)) await db.upsert('app_settings', 'setting_key', { setting_key: k, setting_value: String(val) });
   settings.invalidate();
   await audit.log(req, 'UPDATE', { entity: 'app_settings', ...audit.diff(before, Object.fromEntries(Object.entries(v.data).map(([k, x]) => [k, String(x)]))) });
   res.done('Pengaturan disimpan.', '/admin/settings');

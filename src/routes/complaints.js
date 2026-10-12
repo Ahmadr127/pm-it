@@ -20,7 +20,7 @@ router.get('/', can('complaint.manage'), async (req, res) => {
   const [[{ total }], rows, techs] = await Promise.all([
     db.query(`SELECT COUNT(*) total ${from} WHERE ${where.join(' AND ')}`, params),
     db.query(`SELECT c.*, a.asset_code, a.hostname, ru.full_name AS reporter, hu.full_name AS handler, f.id AS follow_up_id, f.status AS follow_up_status
-               ${from} WHERE ${where.join(' AND ')} ORDER BY FIELD(c.status,'Baru','Ditinjau','Ditindaklanjuti','Selesai','Ditolak'), c.created_at DESC LIMIT ? OFFSET ?`, [...params, per, offset]),
+               ${from} WHERE ${where.join(' AND ')} ORDER BY ${db.orderField('c.status', ['Baru', 'Ditinjau', 'Ditindaklanjuti', 'Selesai', 'Ditolak'])}, c.created_at DESC LIMIT ? OFFSET ?`, [...params, per, offset]),
     technicians(),
   ]);
   res.render('complaints/index', { title: 'Keluhan Pengguna', rows, pg: { page, per, total }, STATUS, techs });

@@ -45,7 +45,7 @@ router.get('/', can('dashboard.view'), async (req, res) => {
     months.unshift(cur.slice(0, 7));
     const d = new Date(`${cur}T00:00:00Z`); d.setUTCMonth(d.getUTCMonth() - 1); cur = d.toISOString().slice(0, 10);
   }
-  const monthly = await db.query(`SELECT DATE_FORMAT(r.maintenance_date,'%Y-%m') ym, r.evaluated_status st, COUNT(*) c
+  const monthly = await db.query(`SELECT ${db.yearMonth('r.maintenance_date')} ym, r.evaluated_status st, COUNT(*) c
        FROM maintenance_records r JOIN assets a ON a.id=r.asset_id WHERE ${AW} AND r.deleted_at IS NULL AND r.status='Selesai' AND r.maintenance_date BETWEEN ? AND ?
        GROUP BY ym, st`, [...ap, from, to]);
   const series = (st) => months.map((m) => Number((monthly.find((x) => x.ym === m && x.st === st) || {}).c || 0));
@@ -74,11 +74,11 @@ router.get('/', can('dashboard.view'), async (req, res) => {
     db.query(`SELECT a.id, a.asset_code, a.hostname, a.device_type, a.current_health_status, a.next_maintenance_date, a.last_maintenance_date,
                      e.full_name AS employee_name, d.name AS department_name,
                      (SELECT COUNT(*) FROM follow_up_actions f WHERE f.asset_id=a.id AND f.deleted_at IS NULL AND f.status NOT IN ('Selesai','Dibatalkan')) open_fu,
-                     (SELECT f.title FROM follow_up_actions f WHERE f.asset_id=a.id AND f.deleted_at IS NULL AND f.status NOT IN ('Selesai','Dibatalkan') ORDER BY FIELD(f.priority,'Kritis','Tinggi','Sedang','Rendah') LIMIT 1) fu_title
+                     (SELECT f.title FROM follow_up_actions f WHERE f.asset_id=a.id AND f.deleted_at IS NULL AND f.status NOT IN ('Selesai','Dibatalkan') ORDER BY ${db.orderField('f.priority', ['Kritis', 'Tinggi', 'Sedang', 'Rendah'])} LIMIT 1) fu_title
                 FROM assets a LEFT JOIN employees e ON e.id=a.current_employee_id LEFT JOIN departments d ON d.id=a.current_department_id
                WHERE ${ACTIVE} AND (a.current_health_status IN ('KRITIS','PERHATIAN') OR a.next_maintenance_date < ?
                      OR EXISTS (SELECT 1 FROM follow_up_actions f WHERE f.asset_id=a.id AND f.deleted_at IS NULL AND f.status NOT IN ('Selesai','Dibatalkan')))
-               ORDER BY FIELD(a.current_health_status,'KRITIS','PERHATIAN','BELUM_DIEVALUASI','BAIK'), a.next_maintenance_date IS NULL, a.next_maintenance_date LIMIT 12`, [...ap, today]),
+               ORDER BY ${db.orderField('a.current_health_status', ['KRITIS', 'PERHATIAN', 'BELUM_DIEVALUASI', 'BAIK'])}, a.next_maintenance_date IS NULL, a.next_maintenance_date LIMIT 12`, [...ap, today]),
     lookups(),
     db.query('SELECT w.id, w.name, d.name AS department_name FROM work_units w JOIN departments d ON d.id=w.department_id WHERE w.deleted_at IS NULL ORDER BY d.name, w.name'),
     db.one("SELECT COUNT(*) c FROM maintenance_records WHERE deleted_at IS NULL AND approval_status='Menunggu'"),

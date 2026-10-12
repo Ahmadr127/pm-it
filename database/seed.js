@@ -63,7 +63,7 @@ async function seedBase({ silent = false, adminPassword } = {}) {
   const log = (...a) => { if (!silent) console.log(...a); };
 
   for (const [code, name, group] of PERMISSIONS) {
-    await db.query('INSERT INTO permissions (code, name, group_name) VALUES (?,?,?) ON DUPLICATE KEY UPDATE name=VALUES(name), group_name=VALUES(group_name)', [code, name, group]);
+    await db.upsert('permissions', 'code', { code, name, group_name: group });
   }
   for (const [code, r] of Object.entries(ROLE_DEFAULTS)) {
     const existing = await db.one('SELECT id FROM roles WHERE code=?', [code]);
@@ -99,7 +99,7 @@ async function seedBase({ silent = false, adminPassword } = {}) {
   }
 
   for (const [k, v, d] of SETTINGS) {
-    await db.query('INSERT INTO app_settings (setting_key, setting_value, description) VALUES (?,?,?) ON DUPLICATE KEY UPDATE description=VALUES(description)', [k, v, d]);
+    await db.upsert('app_settings', 'setting_key', { setting_key: k, setting_value: v, description: d });
   }
   const thrCount = await db.one('SELECT COUNT(*) c FROM hardware_thresholds');
   if (!thrCount.c) {

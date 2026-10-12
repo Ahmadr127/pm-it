@@ -69,8 +69,7 @@ function pseudoAsset(d) {
 }
 
 async function seq(t, key) {
-  await t.query('INSERT INTO number_sequences (seq_key, last_number) VALUES (?, LAST_INSERT_ID(1)) ON DUPLICATE KEY UPDATE last_number = LAST_INSERT_ID(last_number + 1)', [key]);
-  return (await t.one('SELECT LAST_INSERT_ID() n')).n;
+  return db.nextSequence(t, key);
 }
 
 async function autoAssetCode(t, type) {

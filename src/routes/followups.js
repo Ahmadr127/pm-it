@@ -23,7 +23,7 @@ router.get('/', can('followup.view'), async (req, res) => {
   if (req.query.pic_user_id) { where.push('f.pic_user_id = ?'); params.push(req.query.pic_user_id); }
   if (req.query.department_id) { where.push('a.current_department_id = ?'); params.push(req.query.department_id); }
   if (req.query.asset_id) { where.push('f.asset_id = ?'); params.push(req.query.asset_id); }
-  if (req.query.overdue === '1') where.push("f.target_date < CURDATE() AND f.status NOT IN ('Selesai','Dibatalkan')");
+  if (req.query.overdue === '1') where.push("f.target_date < CURRENT_DATE AND f.status NOT IN ('Selesai','Dibatalkan')");
   if (req.query.q) { const like = `%${h.likeEscape(req.query.q)}%`; where.push('(f.title LIKE ? OR a.asset_code LIKE ? OR a.hostname LIKE ?)'); params.push(like, like, like); }
   const from = `FROM follow_up_actions f JOIN assets a ON a.id=f.asset_id LEFT JOIN users u ON u.id=f.pic_user_id
                 LEFT JOIN maintenance_records r ON r.id=f.maintenance_record_id LEFT JOIN departments d ON d.id=a.current_department_id LEFT JOIN users rv ON rv.id=f.reviewed_by`;
@@ -31,7 +31,7 @@ router.get('/', can('followup.view'), async (req, res) => {
   const [[{ total }], rows, techs, lk] = await Promise.all([
     db.query(`SELECT COUNT(*) total ${from} WHERE ${w}`, params),
     db.query(`SELECT f.*, a.asset_code, a.hostname, u.full_name AS pic, r.maintenance_no, d.name AS department_name, rv.full_name AS reviewer ${from} WHERE ${w}
-               ORDER BY FIELD(f.status,'Terbuka','Dalam Proses','Menunggu Sparepart','Selesai','Dibatalkan'), FIELD(f.priority,'Kritis','Tinggi','Sedang','Rendah'), f.target_date IS NULL, f.target_date, f.id DESC
+               ORDER BY ${db.orderField('f.status', ['Terbuka', 'Dalam Proses', 'Menunggu Sparepart', 'Selesai', 'Dibatalkan'])}, ${db.orderField('f.priority', ['Kritis', 'Tinggi', 'Sedang', 'Rendah'])}, f.target_date IS NULL, f.target_date, f.id DESC
                LIMIT ? OFFSET ?`, [...params, per, offset]),
     technicians(), lookups(),
   ]);
@@ -98,7 +98,7 @@ router.post('/:id', can('followup.manage'), async (req, res) => {
   if (d.status === 'Selesai' && !d.resolution) throw new ValidationError({ resolution: 'Isi hasil penyelesaian sebelum menutup tindak lanjut.' });
   await db.transaction(async (t) => {
     await t.query(`UPDATE follow_up_actions SET title=?, description=?, priority=?, status=?, pic_user_id=?, target_date=?, resolution=?,
-                     completed_at=IF(?='Selesai', COALESCE(completed_at, NOW()), NULL), reviewed_by=?, reviewed_at=NOW() WHERE id=?`,
+                     completed_at=CASE WHEN ?='Selesai' THEN COALESCE(completed_at, NOW()) ELSE NULL END, reviewed_by=?, reviewed_at=NOW() WHERE id=?`,
     [d.title, d.description, d.priority, d.status, d.pic_user_id, d.target_date, d.resolution, d.status, req.user.id, f.id]);
     if (f.maintenance_record_id) {
       const map = { Terbuka: 'Perlu Tindak Lanjut', 'Dalam Proses': 'Dalam Proses', 'Menunggu Sparepart': 'Dalam Proses', Selesai: 'Selesai' };

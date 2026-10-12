@@ -161,9 +161,8 @@ async function parse(body, action, asset, taskDefs) {
 
 async function nextNumber(t, date) {
   const key = `PM-${date.slice(0, 4)}${date.slice(5, 7)}`;
-  await t.query('INSERT INTO number_sequences (seq_key, last_number) VALUES (?, LAST_INSERT_ID(1)) ON DUPLICATE KEY UPDATE last_number = LAST_INSERT_ID(last_number + 1)', [key]);
-  const row = await t.one('SELECT LAST_INSERT_ID() n');
-  return `${key}-${String(row.n).padStart(4, '0')}`;
+  const n = await db.nextSequence(t, key);
+  return `${key}-${String(n).padStart(4, '0')}`;
 }
 
 async function taskDefinitions(deviceType) {
