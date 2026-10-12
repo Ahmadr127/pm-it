@@ -48,7 +48,7 @@ test('halaman akses HP menampilkan alamat & QR', async () => {
   assert.match(r.text, /<svg/);
   assert.match(r.text, /6-IZINKAN-AKSES-HP\.bat/);
   // alamat manual dari Pengaturan Sistem dipakai di QR/label
-  await db.query("INSERT INTO app_settings (setting_key, setting_value) VALUES ('public_base_url','https://pmit.kantor.local:3443') ON DUPLICATE KEY UPDATE setting_value=VALUES(setting_value)");
+  await db.upsert('app_settings', 'setting_key', { setting_key: 'public_base_url', setting_value: 'https://pmit.kantor.local:3443' });
   require('../src/services/settings').invalidate();
   assert.match((await admin.get('/akses-perangkat')).text, /https:\/\/pmit\.kantor\.local:3443/);
 });

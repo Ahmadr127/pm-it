@@ -91,9 +91,9 @@ async function run(type, q) {
     const f = assetFilters(q);
     const rf = recFilters(q);
     const rows = await db.query(`SELECT COALESCE(d.name,'(Tanpa departemen)') department, COALESCE(w.name,'-') work_unit, COUNT(*) total,
-         SUM(a.current_health_status='BAIK') baik, SUM(a.current_health_status='PERHATIAN') perhatian, SUM(a.current_health_status='KRITIS') kritis,
-         SUM(a.current_health_status='BELUM_DIEVALUASI') belum, SUM(a.next_maintenance_date < ?) terlambat,
-         SUM(EXISTS (SELECT 1 FROM maintenance_records r WHERE r.asset_id=a.id AND ${rf.where} AND r.status='Selesai')) maintained
+         ${db.sumIf(`a.current_health_status='BAIK'`)} baik, ${db.sumIf(`a.current_health_status='PERHATIAN'`)} perhatian, ${db.sumIf(`a.current_health_status='KRITIS'`)} kritis,
+         ${db.sumIf(`a.current_health_status='BELUM_DIEVALUASI'`)} belum, ${db.sumIf(`a.next_maintenance_date < ?`)} terlambat,
+         ${db.sumIf(`EXISTS (SELECT 1 FROM maintenance_records r WHERE r.asset_id=a.id AND ${rf.where} AND r.status='Selesai')`)} maintained
        FROM assets a LEFT JOIN departments d ON d.id=a.current_department_id LEFT JOIN work_units w ON w.id=a.current_work_unit_id
        WHERE ${f.where} AND a.asset_status <> 'Nonaktif' GROUP BY d.name, w.name ORDER BY d.name, w.name`, [today, ...rf.params, ...f.params]);
     rows.forEach((r) => Object.keys(r).forEach((k) => { if (!['department', 'work_unit'].includes(k)) r[k] = Number(r[k] || 0); }));
@@ -149,7 +149,7 @@ async function run(type, q) {
     const extra = []; const ep = [];
     if (q.technician_user_id) { extra.push('s.technician_user_id = ?'); ep.push(q.technician_user_id); }
     const rows = await db.query(`SELECT s.*, a.asset_code, a.hostname, a.device_type, a.last_maintenance_date, a.current_health_status, e.full_name employee_name, d.name department_name, w.name work_unit_name, u.full_name technician,
-         DATEDIFF(?, s.scheduled_date) late_days
+         ${db.dateDiff('?', 's.scheduled_date')} late_days
        FROM maintenance_schedules s JOIN assets a ON a.id=s.asset_id LEFT JOIN employees e ON e.id=a.current_employee_id LEFT JOIN departments d ON d.id=a.current_department_id
        LEFT JOIN work_units w ON w.id=a.current_work_unit_id LEFT JOIN users u ON u.id=s.technician_user_id
        WHERE ${f.where} AND s.deleted_at IS NULL AND s.status IN ('Terjadwal','Ditunda','Dalam Proses') AND s.scheduled_date < ? ${extra.length ? `AND ${extra.join(' AND ')}` : ''}

@@ -20,9 +20,12 @@ const notFound = () => Object.assign(new Error('Aset tidak ditemukan.'), { statu
 
 const SORTS = {
   code: 'a.asset_code', hostname: 'a.hostname', type: 'a.device_type', status: 'a.asset_status', user: 'e.full_name',
-  dept: 'd.name', health: "FIELD(a.current_health_status,'KRITIS','PERHATIAN','BELUM_DIEVALUASI','BAIK')",
-  last: 'a.last_maintenance_date', next: 'a.next_maintenance_date', updated: 'a.updated_at',
+  dept: 'd.name', health: 'a.current_health_status', last: 'a.last_maintenance_date', next: 'a.next_maintenance_date', updated: 'a.updated_at',
 };
+// Urutan severity (KRITIS dulu) lintas-dialek; kolom lain tetap dari whitelist SORTS.
+function healthOrderSql(dir) {
+  return `${db.orderField('a.current_health_status', ['KRITIS', 'PERHATIAN', 'BELUM_DIEVALUASI', 'BAIK'])} ${dir}`;
+}
 
 async function workUnits() {
   return db.query('SELECT w.id, w.name, w.department_id, d.name AS department_name FROM work_units w JOIN departments d ON d.id=w.department_id WHERE w.deleted_at IS NULL AND w.is_active=1 ORDER BY d.name, w.name');
@@ -32,10 +35,11 @@ async function workUnits() {
 router.get('/', can('asset.view'), async (req, res) => {
   const { page, per, offset } = h.paging(req.query);
   const s = h.sorting(req.query, SORTS, 'code');
+  const orderSql = s.key === 'health' ? healthOrderSql(s.dir) : s.sql;
   const f = A.filterSql(req.query);
   const [[{ total }], rows, lk, units] = await Promise.all([
     db.query(`SELECT COUNT(*) total ${A.LIST_FROM} WHERE ${f.where}`, f.params),
-    db.query(`SELECT ${A.LIST_COLS} ${A.LIST_FROM} WHERE ${f.where} ORDER BY ${s.sql}, a.id LIMIT ? OFFSET ?`, [...f.params, per, offset]),
+    db.query(`SELECT ${A.LIST_COLS} ${A.LIST_FROM} WHERE ${f.where} ORDER BY ${orderSql}, a.id LIMIT ? OFFSET ?`, [...f.params, per, offset]),
     lookups(), workUnits(),
   ]);
   res.render('assets/index', { title: 'Master Aset PC', rows, pg: { page, per, total }, ...lk, units, A, locText });

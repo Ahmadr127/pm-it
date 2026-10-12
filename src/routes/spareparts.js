@@ -35,7 +35,7 @@ router.get('/', can('sparepart.view'), async (req, res) => {
   const [parts, stats, recent] = await Promise.all([
     db.query(`SELECT p.*, (SELECT MAX(m.created_at) FROM spare_part_movements m WHERE m.spare_part_id=p.id AND m.movement_type='KELUAR') AS last_used
                 FROM spare_parts p WHERE ${where.join(' AND ')} ORDER BY (p.stock <= p.min_stock) DESC, p.name`, params),
-    db.one(`SELECT COUNT(*) total, SUM(stock <= min_stock AND stock > 0) low, SUM(stock = 0) empty FROM spare_parts WHERE deleted_at IS NULL`),
+    db.one(`SELECT COUNT(*) total, ${db.sumIf('stock <= min_stock AND stock > 0')} low, ${db.sumIf('stock = 0')} empty FROM spare_parts WHERE deleted_at IS NULL`),
     db.query(`SELECT m.*, p.name, p.unit, a.asset_code, a.hostname, u.full_name AS user_name, r.maintenance_no
                 FROM spare_part_movements m JOIN spare_parts p ON p.id=m.spare_part_id
                 LEFT JOIN assets a ON a.id=m.asset_id LEFT JOIN users u ON u.id=m.created_by LEFT JOIN maintenance_records r ON r.id=m.maintenance_record_id

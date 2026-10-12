@@ -45,7 +45,7 @@ test('database lama: SPV / Kepala IT -> Manager IT (akun tetap), akun karyawan d
 });
 
 test('instalasi yang sudah menjalankan versi awal 003 (tanpa Manager IT) mendapat role Manager IT', async () => {
-  await db.query("UPDATE users u JOIN roles a ON a.code='ADMIN' JOIN roles m ON m.code='MANAGER_IT' SET u.role_id=a.id WHERE u.role_id=m.id");
+  await db.query("UPDATE users SET role_id=(SELECT id FROM roles WHERE code='ADMIN') WHERE role_id IN (SELECT id FROM roles WHERE code='MANAGER_IT')");
   await dropManagerRole();
   await db.query("UPDATE roles SET name='Admin / Manager IT' WHERE code='ADMIN'");
   await db.query("DELETE FROM schema_migrations WHERE name='004_manager_it_role.sql'");

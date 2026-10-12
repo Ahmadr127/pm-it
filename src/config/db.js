@@ -21,13 +21,14 @@ if (isPg) {
   types.setTypeParser(21, (v) => (v === null ? null : parseInt(v, 10))); // INT2
   types.setTypeParser(23, (v) => (v === null ? null : parseInt(v, 10))); // INT4
   types.setTypeParser(1700, (v) => (v === null ? null : parseFloat(v))); // NUMERIC
-  const asDate = (v) => (v === null ? null : v.slice(0, 10)); // DATE -> 'YYYY-MM-DD'
+  const asDate = (v) => (v === null ? null : String(v).slice(0, 10)); // DATE -> 'YYYY-MM-DD'
   const asStamp = (v) => {
+    // Kembalikan wall-time apa adanya ('YYYY-MM-DD HH:MM:SS'), seperti
+    // dateStrings:true di mysql2 — tanpa konversi zona waktu.
     if (v === null) return null;
-    // '2026-10-12T07:00:00.000Z' -> '2026-10-12 07:00:00' (UTC, konsisten untuk perbandingan string).
-    const d = new Date(v);
-    const p = (n) => String(n).padStart(2, '0');
-    return `${d.getUTCFullYear()}-${p(d.getUTCMonth() + 1)}-${p(d.getUTCDate())} ${p(d.getUTCHours())}:${p(d.getUTCMinutes())}:${p(d.getUTCSeconds())}`;
+    const m = String(v).match(/(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2}):(\d{2})/);
+    if (!m) return String(v);
+    return `${m[1]}-${m[2]}-${m[3]} ${m[4]}:${m[5]}:${m[6]}`;
   };
   types.setTypeParser(1082, asDate); // DATE
   types.setTypeParser(1114, asStamp); // TIMESTAMP
@@ -85,8 +86,9 @@ function translate(sql, params) {
     if (ch === '?') {
       const val = params[p++];
       if (Array.isArray(val)) {
-        if (!val.length) out += '(NULL)';
-        else out += `(${val.map((v) => { idx++; expanded.push(v); return `$${idx}`; }).join(',')})`;
+        // Parens milik SQL-nya sendiri (pola IN (?)); kosong -> NULL (tak cocok apa pun).
+        if (!val.length) out += 'NULL';
+        else out += val.map((v) => { idx++; expanded.push(v); return `$${idx}`; }).join(',');
       } else {
         idx++;
         expanded.push(val);
@@ -124,7 +126,7 @@ async function query(sql, params = []) {
   let text = t.sql;
   if (needsId(text)) text += ' RETURNING id';
   const res = await pool.query(text, t.params);
-  if (isInsert(sql)) {
+  if (isInsert(sql) && !/RETURNING\b/i.test(sql)) {
     const row = (res.rows || [])[0] || {};
     return { insertId: row.id !== undefined ? Number(row.id) : undefined, affectedRows: res.rowCount };
   }
@@ -167,7 +169,7 @@ async function transaction(fn) {
       let text = t.sql;
       if (needsId(text)) text += ' RETURNING id';
       const res = await client.query(text, t.params);
-      if (isInsert(sql)) {
+      if (isInsert(sql) && !/RETURNING\b/i.test(sql)) {
         const row = (res.rows || [])[0] || {};
         return { insertId: row.id !== undefined ? Number(row.id) : undefined, affectedRows: res.rowCount };
       }
@@ -238,6 +240,13 @@ function orderField(col, values) {
 }
 
 /**
+ * Agregasi hitung-bersyarat lintas-dialek (pengganti SUM(ekspresi-boolean) MySQL).
+ */
+function sumIf(cond) {
+  return `SUM(CASE WHEN ${cond} THEN 1 ELSE 0 END)`;
+}
+
+/**
  * Agregasi string lintas-dialek (pengganti GROUP_CONCAT).
  * mysql: GROUP_CONCAT(expr SEPARATOR sep) | pgsql: STRING_AGG(expr, sep)
  */
@@ -247,6 +256,13 @@ function groupConcat(expr, sep) {
 }
 
 /**
+ * Selisih hari (a - b) lintas-dialek (pengganti DATEDIFF(a, b) MySQL).
+ */
+function dateDiff(a, b) {
+  if (!isPg) return `DATEDIFF(${a}, ${b})`;
+  return `(${a}::date - ${b}::date)`;
+}
+/**
  * Format YYYY-MM lintas-dialek (pengganti DATE_FORMAT(x, '%Y-%m')).
  */
 function yearMonth(col) {
@@ -254,4 +270,4 @@ function yearMonth(col) {
   return `TO_CHAR(${col}, 'YYYY-MM')`;
 }
 
-module.exports = { pool, query, one, transaction, upsert, nextSequence, orderField, groupConcat, yearMonth, client: CLIENT, isPg };
+module.exports = { pool, query, one, transaction, upsert, nextSequence, orderField, sumIf, groupConcat, yearMonth, dateDiff, client: CLIENT, isPg };

@@ -109,7 +109,7 @@ async function resolvePeople(t, req, d, { source = 'form maintenance' } = {}) {
   // Departemen (nama unik, tidak peka huruf besar/kecil). Data yang pernah dihapus dipulihkan.
   let dept = null;
   if (d.department_name) {
-    dept = await t.one('SELECT id, name, deleted_at, is_active FROM departments WHERE name=? LIMIT 1', [d.department_name]);
+    dept = await t.one('SELECT id, name, deleted_at, is_active FROM departments WHERE LOWER(name)=LOWER(?) LIMIT 1', [d.department_name]);
     if (dept && (dept.deleted_at || !dept.is_active)) await t.query('UPDATE departments SET deleted_at=NULL, is_active=1 WHERE id=?', [dept.id]);
     if (!dept) {
       const r = await t.query('INSERT INTO departments (name, description, is_active) VALUES (?,?,1)', [d.department_name, note]);
@@ -121,7 +121,7 @@ async function resolvePeople(t, req, d, { source = 'form maintenance' } = {}) {
   // Unit kerja (unik per departemen)
   let unit = null;
   if (d.work_unit_name && dept) {
-    unit = await t.one('SELECT id, name, deleted_at, is_active FROM work_units WHERE department_id=? AND name=? LIMIT 1', [dept.id, d.work_unit_name]);
+    unit = await t.one('SELECT id, name, deleted_at, is_active FROM work_units WHERE department_id=? AND LOWER(name)=LOWER(?) LIMIT 1', [dept.id, d.work_unit_name]);
     if (unit && (unit.deleted_at || !unit.is_active)) await t.query('UPDATE work_units SET deleted_at=NULL, is_active=1 WHERE id=?', [unit.id]);
     if (!unit) {
       const r = await t.query('INSERT INTO work_units (department_id, name, is_active) VALUES (?,?,1)', [dept.id, d.work_unit_name]);
@@ -133,7 +133,7 @@ async function resolvePeople(t, req, d, { source = 'form maintenance' } = {}) {
   // Lokasi (nama lokasi/gedung); ruangan disimpan pada penugasan perangkat
   let loc = null;
   if (d.location_name) {
-    loc = await t.one('SELECT id FROM locations WHERE name=? AND deleted_at IS NULL ORDER BY (building IS NULL) DESC, (room IS NULL) DESC, id LIMIT 1', [d.location_name]);
+    loc = await t.one('SELECT id FROM locations WHERE LOWER(name)=LOWER(?) AND deleted_at IS NULL ORDER BY (building IS NULL) DESC, (room IS NULL) DESC, id LIMIT 1', [d.location_name]);
     if (!loc) {
       const r = await t.query('INSERT INTO locations (name, is_active) VALUES (?,1)', [d.location_name]);
       loc = { id: r.insertId };
@@ -150,7 +150,7 @@ async function resolvePeople(t, req, d, { source = 'form maintenance' } = {}) {
     } else {
       // Nama sama: pakai yang cocok departemen / lokasi / ruangan; bila tetap lebih dari satu, pakai data terbaru
       const same = await t.query(`SELECT e.id, e.full_name, e.location_id, e.room, d.name AS dept FROM employees e LEFT JOIN departments d ON d.id=e.department_id
-                                   WHERE e.full_name=? AND e.deleted_at IS NULL ORDER BY e.id DESC`, [d.employee_name]);
+                                   WHERE LOWER(e.full_name)=LOWER(?) AND e.deleted_at IS NULL ORDER BY e.id DESC`, [d.employee_name]);
       const low = (x) => String(x || '').toLowerCase();
       const pick = (list, fn) => { const f = list.filter(fn); return f.length ? f : list; };
       let cand = same;

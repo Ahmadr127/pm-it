@@ -30,7 +30,12 @@ function canEdit(user, rec) {
 
 // ---------------- Daftar ----------------
 const SORTS = { no: 'r.maintenance_no', date: 'r.maintenance_date', asset: 'r.asset_code_snapshot', tech: 'u.full_name', status: 'r.status',
-  final: "FIELD(r.final_condition,'Kritis','Perlu Perbaikan','Perlu Monitoring','Baik dengan catatan','Baik')", eval: "FIELD(r.evaluated_status,'KRITIS','PERHATIAN','BAIK','BELUM_DIEVALUASI')", dept: 'r.department_snapshot' };
+  final: 'r.final_condition', eval: 'r.evaluated_status', dept: 'r.department_snapshot' };
+// Urutan severity lintas-dialek untuk kunci sort final/eval.
+function severityOrderSql(key, dir) {
+  if (key === 'final') return `${db.orderField('r.final_condition', ['Kritis', 'Perlu Perbaikan', 'Perlu Monitoring', 'Baik dengan catatan', 'Baik'])} ${dir}`;
+  return `${db.orderField('r.evaluated_status', ['KRITIS', 'PERHATIAN', 'BAIK', 'BELUM_DIEVALUASI'])} ${dir}`;
+}
 
 function listFilters(q) {
   const where = ['r.deleted_at IS NULL']; const params = [];
@@ -46,11 +51,12 @@ function listFilters(q) {
 router.get('/', can('maintenance.view'), async (req, res) => {
   const { page, per, offset } = h.paging(req.query);
   const s = h.sorting(req.query, SORTS, 'date', 'desc');
+  const orderSql = (s.key === 'final' || s.key === 'eval') ? severityOrderSql(s.key, s.dir) : s.sql;
   const f = listFilters(req.query);
   const from = 'FROM maintenance_records r LEFT JOIN users u ON u.id=r.technician_user_id';
   const [[{ total }], rows, techs, lk, units] = await Promise.all([
     db.query(`SELECT COUNT(*) total ${from} WHERE ${f.where}`, f.params),
-    db.query(`SELECT r.*, u.full_name AS technician ${from} WHERE ${f.where} ORDER BY ${s.sql}, r.id DESC LIMIT ? OFFSET ?`, [...f.params, per, offset]),
+    db.query(`SELECT r.*, u.full_name AS technician ${from} WHERE ${f.where} ORDER BY ${orderSql}, r.id DESC LIMIT ? OFFSET ?`, [...f.params, per, offset]),
     technicians(), lookups(),
     db.query('SELECT w.id, w.name, d.name AS department_name FROM work_units w JOIN departments d ON d.id=w.department_id WHERE w.deleted_at IS NULL ORDER BY d.name, w.name'),
   ]);
@@ -208,7 +214,7 @@ router.post('/:id/approve', can('maintenance.approve'), async (req, res) => {
   if (!r) throw notFound();
   if (r.status !== 'Selesai') throw new ValidationError({ decision: 'Hanya maintenance berstatus Selesai yang dapat ditinjau.' });
   await db.transaction(async (t) => {
-    await t.query(`UPDATE maintenance_records SET approval_status=?, approved_by=?, approved_at=NOW(), approval_notes=?, status=IF(?='Ditolak','Dalam Proses',status) WHERE id=?`,
+    await t.query(`UPDATE maintenance_records SET approval_status=?, approved_by=?, approved_at=NOW(), approval_notes=?, status=CASE WHEN ?='Ditolak' THEN 'Dalam Proses' ELSE status END WHERE id=?`,
       [v.data.decision, req.user.id, v.data.approval_notes, v.data.decision, r.id]);
     await audit.log(req, v.data.decision === 'Disetujui' ? 'APPROVE' : 'REJECT', { entity: 'maintenance_records', id: r.id, description: `${r.maintenance_no} ${v.data.decision.toLowerCase()}`, after: v.data }, t);
   });

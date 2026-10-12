@@ -49,9 +49,9 @@ function errorHandler(err, req, res, next) {
   let message = err.message || 'Terjadi kesalahan.';
   let errors = err.errors || null;
 
-  if (err.code === 'ER_DUP_ENTRY') {
+  if (err.code === 'ER_DUP_ENTRY' || err.code === '23505') {
     status = 409;
-    const m = /for key '(?:[\w]+\.)?([\w]+)'/.exec(err.sqlMessage || '');
+    const m = /for key '(?:[\w]+\.)?([\w]+)'/.exec(err.sqlMessage || '') || /constraint "([\w]+)"/.exec(err.message || '');
     const keyMap = {
       uq_assets_code: ['asset_code', 'Kode aset sudah digunakan. Kode aset harus unik.'],
       uq_assets_inventory: ['inventory_number', 'Nomor inventaris sudah digunakan.'],
@@ -69,6 +69,13 @@ function errorHandler(err, req, res, next) {
     status = 409; message = 'Data tidak dapat dihapus karena masih dipakai oleh data lain. Nonaktifkan saja bila tidak dipakai lagi.';
   } else if (err.code === 'ER_NO_REFERENCED_ROW_2') {
     status = 422; message = 'Data referensi yang dipilih tidak ditemukan.';
+  } else if (err.code === '23503') {
+    // PostgreSQL memakai satu kode untuk kedua arah FK.
+    if (req.method === 'DELETE') {
+      status = 409; message = 'Data tidak dapat dihapus karena masih dipakai oleh data lain. Nonaktifkan saja bila tidak dipakai lagi.';
+    } else {
+      status = 422; message = 'Data referensi yang dipilih tidak ditemukan.';
+    }
   } else if (err.code === 'EBADCSRFTOKEN') {
     status = 403;
   }

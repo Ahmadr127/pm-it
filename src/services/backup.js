@@ -22,6 +22,7 @@ const { ZipWriter, openZip } = require('./zip');
 const KINDS = { manual: 'Manual', otomatis: 'Otomatis', 'sebelum-pulihkan': 'Sebelum pemulihan', unggahan: 'Diunggah' };
 const NAME_RE = /^pmit-backup-(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})(\d{2})-(manual|otomatis|sebelum-pulihkan|unggahan)(?:-\d+)?\.zip$/;
 const SKIP_TABLES = new Set(['sessions']);
+const SKIP_TABLES_PG = new Set(['session']);
 const DEFAULTS = { backup_keep: '14', backup_copy_dir: '' };
 
 let busy = null; // 'backup' | 'restore' — mencegah dua proses berjalan bersamaan
@@ -37,6 +38,14 @@ async function conf() {
 }
 
 function connect(extra = {}) {
+  if (config.db.client === 'pgsql') {
+    const { Client } = require('pg');
+    const client = new Client({
+      host: config.db.host, port: config.db.port, user: config.db.user,
+      password: config.db.password, database: config.db.database, ...extra,
+    });
+    return client.connect().then(() => client);
+  }
   return mysql.createConnection({
     host: config.db.host, port: config.db.port, user: config.db.user, password: config.db.password, database: config.db.database,
     charset: 'utf8mb4', dateStrings: true, supportBigNumbers: true, bigNumberStrings: true,
@@ -44,8 +53,20 @@ function connect(extra = {}) {
   });
 }
 
-/** Isi database dalam bentuk SQL. */
+const qiPg = (n) => `"${String(n).replace(/"/g, '""')}"`;
+function litPg(v) {
+  if (v === null || v === undefined) return 'NULL';
+  if (typeof v === 'number' || typeof v === 'bigint') return String(v);
+  if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE';
+  if (Buffer.isBuffer(v)) return `'\\x${v.toString('hex')}'`;
+  // E'' agar \n, \r, \\ pulih persis saat restore.
+  return `E'${String(v).replace(/\\/g, '\\\\').replace(/'/g, "''").replace(/\r/g, '\\r').replace(/\n/g, '\\n')}'`;
+}
+
+/** Isi database dalam bentuk SQL (dialek aktif). Untuk PostgreSQL hanya data
+ *  (INSERT); skema dibuat ulang oleh migrate() saat pemulihan. */
 async function dumpSql() {
+  if (config.db.client === 'pgsql') return dumpSqlPg();
   const conn = await connect();
   const out = []; const counts = {};
   try {
@@ -68,6 +89,41 @@ async function dumpSql() {
     }
     await conn.query('COMMIT');
     out.push('\nSET FOREIGN_KEY_CHECKS=1;\n');
+  } finally { await conn.end(); }
+  return { sql: Buffer.from(out.join(''), 'utf8'), counts };
+}
+
+/** Varian PostgreSQL: hanya INSERT (urutan-bebas; FK deferrable). */
+async function dumpSqlPg() {
+  const { Client } = require('pg');
+  const conn = new Client({
+    host: config.db.host, port: config.db.port, user: config.db.user,
+    password: config.db.password, database: config.db.database,
+  });
+  await conn.connect();
+  const out = []; const counts = {};
+  try {
+    const tables = (await conn.query(
+      "SELECT tablename FROM pg_tables WHERE schemaname='public' ORDER BY tablename"
+    )).rows.map((r) => r.tablename).filter((t) => !SKIP_TABLES_PG.has(t)).sort();
+    out.push(`-- Backup PM-IT Asset Monitoring (PostgreSQL)\n-- Database: ${config.db.database}\n-- Dibuat: ${new Date().toISOString()}\n`);
+    out.push('-- Skema dibuat oleh migrate(); file ini hanya berisi data.\n');
+    for (const t of tables) {
+      const cols = (await conn.query(
+        'SELECT column_name FROM information_schema.columns WHERE table_schema=$1 AND table_name=$2 ORDER BY ordinal_position',
+        ['public', t]
+      )).rows.map((r) => r.column_name);
+      const { rows } = await conn.query(`SELECT * FROM ${qiPg(t)}`);
+      counts[t] = rows.length;
+      if (!rows.length) continue;
+      const colList = cols.map(qiPg).join(',');
+      out.push(`\n-- ${t} (${rows.length} baris)\n`);
+      for (let i = 0; i < rows.length; i += 200) {
+        const chunk = rows.slice(i, i + 200)
+          .map((r) => `(${cols.map((c) => litPg(r[c])).join(',')})`).join(',');
+        out.push(`INSERT INTO ${qiPg(t)} (${colList}) VALUES ${chunk};\n`);
+      }
+    }
   } finally { await conn.end(); }
   return { sql: Buffer.from(out.join(''), 'utf8'), counts };
 }
@@ -112,7 +168,7 @@ async function createBackup({ kind = 'manual', user = null } = {}) {
     const [mig] = await db.query('SELECT name FROM schema_migrations ORDER BY name DESC LIMIT 1').catch(() => [[]]);
     const manifest = {
       app: config.appName, format: 1, kind, created_at: new Date().toISOString(), created_by: user ? user.full_name || user.username : 'Sistem',
-      database: config.db.database, schema: mig ? mig.name : null, tables: counts,
+      database: config.db.database, dialect: config.db.client, schema: mig ? mig.name : null, tables: counts,
       sql_bytes: sql.length, sql_sha256: crypto.createHash('sha256').update(sql).digest('hex'), upload_files: files.length, upload_bytes: bytes,
     };
     zip.add('manifest.json', JSON.stringify(manifest, null, 2));
@@ -187,6 +243,8 @@ function inspect(file) {
     const manifest = JSON.parse(z.read('manifest.json').toString('utf8'));
     const sql = z.read('database.sql');
     if (crypto.createHash('sha256').update(sql).digest('hex') !== manifest.sql_sha256) throw new Error('Checksum database.sql tidak cocok — file backup rusak.');
+    const dialect = manifest.dialect || 'mysql'; // backup lama tanpa penanda = MySQL
+    if (dialect !== config.db.client) throw new Error(`Backup ini untuk database ${dialect === 'pgsql' ? 'PostgreSQL' : 'MySQL'}, sedangkan aplikasi memakai ${config.db.client === 'pgsql' ? 'PostgreSQL' : 'MySQL'}.`);
     return { manifest, sql, uploads: z.entries.filter((e) => e.name.startsWith('uploads/') && !e.name.endsWith('/')) };
   } finally { z.close(); }
 }
@@ -205,11 +263,87 @@ function importUploaded(tmpPath) {
 }
 
 const ALLOWED = /^(SET (NAMES|FOREIGN_KEY_CHECKS|UNIQUE_CHECKS|SQL_MODE|TIME_ZONE)\b|DROP TABLE IF EXISTS `\w+`$|CREATE TABLE `\w+` \(|INSERT INTO `\w+` \()/i;
+const ALLOWED_PG = /^(DROP TABLE IF EXISTS "\w+"( CASCADE)?$|INSERT INTO "\w+" \()/i;
 function statements(sql) {
-  return sql.toString('utf8').split(/;\r?\n/).map((s) => s.replace(/^\s*--.*$/gm, '').trim()).filter(Boolean);
+  // Pisahkan per statement tanpa memotong literal string '...' (bisa memuat ; dan newline).
+  const text = sql.toString('utf8');
+  const out = [];
+  let cur = '';
+  let inStr = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    cur += ch;
+    if (inStr) {
+      if (ch === "'") {
+        if (text[i + 1] === "'") { cur += text[i + 1]; i++; }
+        else inStr = false;
+      }
+      continue;
+    }
+    if (ch === "'") { inStr = true; continue; }
+    if (ch === ';' && (text[i + 1] === '\n' || text[i + 1] === '\r' || i + 1 >= text.length)) {
+      const stmt = cur.replace(/^\s*--.*$/gm, '').trim();
+      if (stmt) out.push(stmt);
+      cur = '';
+    }
+  }
+  const rest = cur.replace(/^\s*--.*$/gm, '').trim();
+  if (rest) out.push(rest);
+  return out;
+}
+
+/** Varian PostgreSQL: skema dibuat migrate(), lalu data dimuat dalam transaksi
+ *  (FK deferrable sehingga urutan INSERT bebas). */
+async function loadSqlPg(sql) {
+  const list = statements(sql);
+  const bad = list.find((s) => !ALLOWED_PG.test(s));
+  if (bad) throw new Error(`Isi database.sql tidak dikenali: "${bad.slice(0, 60)}..."`);
+  const { Client } = require('pg');
+  const conn = new Client({
+    host: config.db.host, port: config.db.port, user: config.db.user,
+    password: config.db.password, database: config.db.database,
+  });
+  await conn.connect();
+  try {
+    const tables = (await conn.query(
+      "SELECT tablename FROM pg_tables WHERE schemaname='public'"
+    )).rows.map((r) => r.tablename).filter((t) => !SKIP_TABLES_PG.has(t));
+    await conn.query('BEGIN');
+    try {
+      // Kosongkan (skema dipertahankan; migrate catch-up menyusul bila perlu).
+      if (tables.length) await conn.query(`TRUNCATE ${tables.map(qiPg).join(', ')} CASCADE`);
+      for (const s of list) {
+        const m = /^INSERT INTO "(\w+)"/i.exec(s);
+        if (m && SKIP_TABLES_PG.has(m[1])) continue;
+        await conn.query(s);
+      }
+      // Sequence SERIAL tidak maju pada INSERT ber-id eksplisit — selaraskan.
+      const seqs = (await conn.query(
+        `SELECT c.relname AS seq, t.tablename AS tbl, a.attname AS col
+           FROM pg_depend d JOIN pg_class c ON c.oid = d.objid
+           JOIN pg_class t ON t.oid = d.refobjid
+           JOIN pg_tables pt ON pt.tablename = t.relname AND pt.schemaname = 'public'
+           JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = d.refobjsubid
+          WHERE c.relkind = 'S' AND d.deptype = 'a'`
+      )).rows;
+      for (const { seq, tbl, col } of seqs) {
+        await conn.query(
+          `SELECT setval($1, COALESCE((SELECT MAX(${qiPg(col)}) FROM ${qiPg(tbl)}), 0) + 1, false)`,
+          [seq]
+        );
+      }
+      await conn.query('COMMIT');
+    } catch (e) {
+      try { await conn.query('ROLLBACK'); } catch (_) { /* abaikan */ }
+      throw e;
+    }
+    // Catch-up skema bila backup dari versi lebih lama.
+    await require('../../database/migrate').migrate({ silent: true });
+  } finally { await conn.end(); }
 }
 
 async function loadSql(sql) {
+  if (config.db.client === 'pgsql') return loadSqlPg(sql);
   const list = statements(sql);
   const bad = list.find((s) => !ALLOWED.test(s));
   if (bad) throw new Error(`Isi database.sql tidak dikenali: "${bad.slice(0, 60)}..."`);

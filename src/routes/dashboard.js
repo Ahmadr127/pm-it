@@ -26,14 +26,14 @@ router.get('/', can('dashboard.view'), async (req, res) => {
 
   const [stats] = await db.query(`SELECT
       COUNT(*) total,
-      SUM(a.asset_status <> 'Nonaktif') active,
-      SUM(a.asset_status <> 'Nonaktif' AND a.current_health_status='BAIK') baik,
-      SUM(a.asset_status <> 'Nonaktif' AND a.current_health_status='PERHATIAN') perhatian,
-      SUM(a.asset_status <> 'Nonaktif' AND a.current_health_status='KRITIS') kritis,
-      SUM(a.asset_status <> 'Nonaktif' AND a.current_health_status='BELUM_DIEVALUASI') belum,
-      SUM(a.asset_status <> 'Nonaktif' AND a.next_maintenance_date BETWEEN ? AND ?) due_soon,
-      SUM(a.asset_status <> 'Nonaktif' AND a.next_maintenance_date < ?) overdue,
-      SUM(a.asset_status <> 'Nonaktif' AND EXISTS (SELECT 1 FROM maintenance_records r WHERE r.asset_id=a.id AND r.status='Selesai' AND r.deleted_at IS NULL AND r.maintenance_date BETWEEN ? AND ?)) maintained
+      ${db.sumIf(`a.asset_status <> 'Nonaktif'`)} active,
+      ${db.sumIf(`a.asset_status <> 'Nonaktif' AND a.current_health_status='BAIK'`)} baik,
+      ${db.sumIf(`a.asset_status <> 'Nonaktif' AND a.current_health_status='PERHATIAN'`)} perhatian,
+      ${db.sumIf(`a.asset_status <> 'Nonaktif' AND a.current_health_status='KRITIS'`)} kritis,
+      ${db.sumIf(`a.asset_status <> 'Nonaktif' AND a.current_health_status='BELUM_DIEVALUASI'`)} belum,
+      ${db.sumIf(`a.asset_status <> 'Nonaktif' AND a.next_maintenance_date BETWEEN ? AND ?`)} due_soon,
+      ${db.sumIf(`a.asset_status <> 'Nonaktif' AND a.next_maintenance_date < ?`)} overdue,
+      ${db.sumIf(`a.asset_status <> 'Nonaktif' AND EXISTS (SELECT 1 FROM maintenance_records r WHERE r.asset_id=a.id AND r.status='Selesai' AND r.deleted_at IS NULL AND r.maintenance_date BETWEEN ? AND ?)`)} maintained
     FROM assets a WHERE ${AW}`, [today, h.addDays(today, dueDays), today, from, to, ...ap]);
   for (const k of Object.keys(stats)) stats[k] = Number(stats[k] || 0);
   stats.not_maintained = stats.active - stats.maintained;

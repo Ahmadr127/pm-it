@@ -9,7 +9,11 @@ const H = require('./helpers');
 
 let app; let admin; let db; let backup; let config;
 const binary = (res, cb) => { const c = []; res.on('data', (d) => c.push(d)); res.on('end', () => cb(null, Buffer.concat(c))); };
-const inserts = (sql, table) => sql.toString('utf8').split('\n').filter((l) => l.startsWith(`INSERT INTO \`${table}\``)).join('\n');
+const inserts = (sql, table) => {
+  const text = sql.toString('utf8');
+  const q = text.includes(`INSERT INTO "${table}"`) ? `"${table}"` : `\`${table}\``;
+  return text.split('\n').filter((l) => l.startsWith(`INSERT INTO ${q}`)).join('\n');
+};
 
 test.before(async () => {
   app = await H.setup(); db = require('../src/config/db'); backup = require('../src/services/backup'); config = require('../src/config');

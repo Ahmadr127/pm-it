@@ -50,7 +50,7 @@ async function assign(conn, {
   }
   if (current) {
     if (current.start_date > start) throw Object.assign(new Error('Tanggal mulai tidak boleh sebelum tanggal mulai penugasan sebelumnya.'), { status: 422, errors: { start_date: `Minimal ${current.start_date}.` } });
-    await conn.query("UPDATE asset_assignments SET is_current=0, end_date=?, status=IF(status='Aktif','Dipindahkan',status) WHERE id=?", [start, current.id]);
+    await conn.query("UPDATE asset_assignments SET is_current=0, end_date=?, status=CASE WHEN status='Aktif' THEN 'Dipindahkan' ELSE status END WHERE id=?", [start, current.id]);
   }
   const r = await conn.query(
     `INSERT INTO asset_assignments (asset_id, employee_id, assignment_role, department_id, work_unit_id, location_id, room,

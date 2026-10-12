@@ -49,9 +49,9 @@ router.get('/', can('schedule.view'), async (req, res) => {
     technicians(), lookups(),
     db.query('SELECT w.id, w.name, d.name AS department_name FROM work_units w JOIN departments d ON d.id=w.department_id WHERE w.deleted_at IS NULL ORDER BY d.name, w.name'),
     db.one(`SELECT
-        SUM(s.status IN ('Terjadwal','Dalam Proses') AND s.scheduled_date >= ?) mendatang,
-        SUM(s.status IN ('Terjadwal','Dalam Proses') AND s.scheduled_date BETWEEN ? AND ?) jatuh_tempo,
-        SUM(s.status IN ('Terjadwal','Ditunda','Dalam Proses') AND s.scheduled_date < ?) terlambat
+        ${db.sumIf(`s.status IN ('Terjadwal','Dalam Proses') AND s.scheduled_date >= ?`)} mendatang,
+        ${db.sumIf(`s.status IN ('Terjadwal','Dalam Proses') AND s.scheduled_date BETWEEN ? AND ?`)} jatuh_tempo,
+        ${db.sumIf(`s.status IN ('Terjadwal','Ditunda','Dalam Proses') AND s.scheduled_date < ?`)} terlambat
       FROM maintenance_schedules s JOIN assets a ON a.id=s.asset_id AND a.deleted_at IS NULL WHERE s.deleted_at IS NULL`, [today, today, h.addDays(today, dueDays), today]),
     db.query('SELECT * FROM maintenance_intervals ORDER BY ' + db.orderField('device_type', ['Desktop PC', 'Laptop', 'Workstation', 'Lainnya'])),
     db.one(`SELECT COUNT(*) c FROM assets a WHERE a.deleted_at IS NULL AND a.asset_status IN ('Aktif','Dipinjamkan')

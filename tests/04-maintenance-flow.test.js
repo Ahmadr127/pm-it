@@ -299,7 +299,7 @@ test('perangkat baru dari form maintenance: otomatis masuk Master Aset PC, Pengg
 
   // Role tanpa izin tambah aset tidak dapat mendaftarkan perangkat
   const staffRole = await db.one("SELECT id FROM roles WHERE code='IT_STAFF'");
-  await db.query("DELETE rp FROM role_permissions rp JOIN permissions p ON p.id=rp.permission_id WHERE rp.role_id=? AND p.code='asset.create'", [staffRole.id]);
+  await db.query("DELETE FROM role_permissions WHERE role_id=? AND permission_id IN (SELECT id FROM permissions WHERE code='asset.create')", [staffRole.id]);
   const denied = await staff.postMultipart('/maintenance').field('asset_mode', 'new').field('action', 'draft').field('maintenance_date', '2026-10-02')
     .field('na[hostname]', 'X-02').field('na[device_type]', 'Desktop PC');
   assert.equal(denied.status, 403);
