@@ -4,7 +4,7 @@ cd /d "%~dp0"
 echo ============================================================
 echo  Aktifkan: aplikasi PM-IT berjalan otomatis setiap Windows
 echo  menyala (di latar belakang, tanpa jendela hitam).
-echo  MySQL XAMPP juga dinyalakan otomatis bila belum berjalan.
+echo  Service PostgreSQL juga dipastikan berjalan bila belum aktif.
 echo ============================================================
 echo.
 set "LNK=%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup\PM-IT Asset Monitoring.lnk"

@@ -2,7 +2,7 @@
 
 Website internal untuk **Preventive Maintenance PC, monitoring kesehatan hardware, inventaris komputer, dan pencatatan pengguna PC**. Antarmuka berbahasa Indonesia, responsif (desktop, tablet, ponsel).
 
-**Stack:** Node.js 22 · Express 5 · MySQL 8 / MariaDB 10.4+ · EJS · Bootstrap 5 · Chart.js · PDFKit · ExcelJS
+**Stack:** Node.js 22 · Express 5 · PostgreSQL 14+ · EJS · Bootstrap 5 · Chart.js · PDFKit · ExcelJS
 (Alasan pemilihan & arsitektur: [`docs/ARSITEKTUR.md`](docs/ARSITEKTUR.md))
 
 ## Fitur
@@ -26,7 +26,7 @@ npm run setup                 # buat tabel + data dasar + akun admin (password a
 npm run demo:load             # opsional: data demonstrasi (hapus: npm run demo:remove)
 npm start                     # http://localhost:3000
 ```
-Windows + XAMPP: [`docs/INSTALL-XAMPP.md`](docs/INSTALL-XAMPP.md) · Produksi: [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md)
+Windows + PostgreSQL: [`docs/INSTALL-WINDOWS.md`](docs/INSTALL-WINDOWS.md) · Produksi: [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md)
 
 ## Perintah
 | Perintah | Fungsi |
@@ -40,7 +40,7 @@ Windows + XAMPP: [`docs/INSTALL-XAMPP.md`](docs/INSTALL-XAMPP.md) · Produksi: [
 
 ## Dokumentasi
 - [`docs/ARSITEKTUR.md`](docs/ARSITEKTUR.md) — analisis kebutuhan, arsitektur, ERD, aturan evaluasi, matriks hak akses
-- [`docs/INSTALL-XAMPP.md`](docs/INSTALL-XAMPP.md) — instalasi lokal Windows/XAMPP
+- [`docs/INSTALL-WINDOWS.md`](docs/INSTALL-WINDOWS.md) — instalasi lokal Windows/PostgreSQL
 - [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) — produksi Linux, HTTPS, checklist keamanan
 - [`docs/BACKUP.md`](docs/BACKUP.md) — backup & pemulihan
 - [`docs/PENGUJIAN.md`](docs/PENGUJIAN.md) — hasil pengujian

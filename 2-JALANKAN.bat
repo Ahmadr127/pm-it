@@ -12,13 +12,29 @@ if not errorlevel 1 (
   exit /b 0
 )
 
-rem Nyalakan MySQL XAMPP bila belum berjalan
-set "XAMPP=%~dp0..\.."
-if not exist "%XAMPP%\mysql\bin\mysqld.exe" set "XAMPP=C:\xampp"
-tasklist /FI "IMAGENAME eq mysqld.exe" 2>nul | find /I "mysqld.exe" >nul
+rem Pastikan PostgreSQL berjalan (port 5432); coba nyalakan service bila belum
+netstat -ano | findstr /R /C:":5432 .*LISTENING" >nul 2>nul
 if errorlevel 1 (
-  echo Menyalakan MySQL XAMPP...
-  start "MySQL XAMPP" /MIN "%XAMPP%\mysql\bin\mysqld.exe" --defaults-file="%XAMPP%\mysql\bin\my.ini" --standalone
+  echo PostgreSQL belum terdeteksi, mencoba menyalakan service...
+  for %%S in (postgresql-x64-18 postgresql-x64-17 postgresql-x64-16 postgresql-x64-15 postgresql-x64-14 postgresql) do (
+    sc query "%%S" >nul 2>&1
+    if not errorlevel 1 net start "%%S" >nul 2>&1
+  )
+  timeout /t 3 /nobreak >nul
+  netstat -ano | findstr /R /C:":5432 .*LISTENING" >nul 2>nul
+  if errorlevel 1 (
+    echo [PERINGATAN] PostgreSQL belum berjalan. Nyalakan via Services ^(postgresql-x64-*^)
+    echo atau jalankan ulang 1-SETUP.bat bila database belum disiapkan.
+  )
+)
+
+if not exist ".env" (
+  echo [GAGAL] File .env tidak ada. Jalankan 1-SETUP.bat terlebih dahulu.
+  pause & exit /b 1
+)
+if not exist "node_modules" (
+  echo [GAGAL] Library belum terpasang. Jalankan 1-SETUP.bat terlebih dahulu.
+  pause & exit /b 1
 )
 
 echo ============================================================

@@ -5,14 +5,14 @@ const { pool } = require('./config/db');
 const logger = require('./utils/logger');
 
 async function start() {
-  // Tunggu database siap (mis. MySQL baru dinyalakan saat Windows mulai) hingga ±2 menit
+  // Tunggu database siap (mis. PostgreSQL baru dinyalakan saat Windows mulai) hingga ±2 menit
   for (let i = 1; ; i++) {
     try { await pool.query('SELECT 1'); break; } catch (e) {
       if (i >= 60) {
-        logger.error('Tidak dapat terhubung ke database. Pastikan MySQL di XAMPP berjalan dan konfigurasi DB_* di file .env benar.', { error: e.code || e.message });
+        logger.error('Tidak dapat terhubung ke database. Pastikan service PostgreSQL berjalan dan konfigurasi DB_* di file .env benar.', { error: e.code || e.message });
         process.exit(1);
       }
-      if (i === 1) logger.info('Menunggu database MySQL siap...');
+      if (i === 1) logger.info('Menunggu database PostgreSQL siap...');
       await new Promise((r) => setTimeout(r, 2000));
     }
   }

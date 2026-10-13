@@ -17,14 +17,14 @@
 
 ## 2. Keputusan teknologi
 
-Master prompt memprioritaskan PHP (CodeIgniter 4/Laravel) namun mengizinkan framework lain dengan alasan. **Stack dipilih bersama pengguna: Node.js + Express + MySQL/MariaDB**, dengan alasan:
+Master prompt memprioritaskan PHP (CodeIgniter 4/Laravel) namun mengizinkan framework lain dengan alasan. **Stack dipilih bersama pengguna: Node.js + Express + PostgreSQL**, dengan alasan:
 
 1. **Satu bahasa (JavaScript) di frontend & backend** — tim IT cukup menguasai satu bahasa untuk pengembangan lanjutan dan integrasi API.
-2. **Tetap kompatibel XAMPP** — database memakai MySQL/MariaDB bawaan XAMPP; Node.js berjalan berdampingan (lihat `INSTALL-XAMPP.md`).
-3. **Dependensi kecil & stabil** — Express 5, mysql2 (prepared statement), EJS (escape otomatis), Bootstrap 5, Chart.js, PDFKit, ExcelJS. Semua aset frontend dibundel lokal: aplikasi tetap berjalan di intranet tanpa internet.
-4. **Mudah diuji** — test otomatis `node:test` + supertest terhadap database MySQL sungguhan.
+2. **PostgreSQL lokal yang andal** — database relasional penuh fitur; Node.js + PostgreSQL berjalan berdampingan di Windows (lihat `INSTALL-WINDOWS.md`).
+3. **Dependensi kecil & stabil** — Express 5, pg (prepared statement), EJS (escape otomatis), Bootstrap 5, Chart.js, PDFKit, ExcelJS. Semua aset frontend dibundel lokal: aplikasi tetap berjalan di intranet tanpa internet.
+4. **Mudah diuji** — test otomatis `node:test` + supertest terhadap database PostgreSQL sungguhan.
 
-Komponen setara dengan permintaan: Bootstrap 5 ✔, Chart.js ✔, library PDF (PDFKit) ✔, Excel (ExcelJS ≈ PhpSpreadsheet) ✔, session aman (express-session + store MySQL) ✔, konfigurasi via `.env` ✔.
+Komponen setara dengan permintaan: Bootstrap 5 ✔, Chart.js ✔, library PDF (PDFKit) ✔, Excel (ExcelJS ≈ PhpSpreadsheet) ✔, session aman (express-session + store PostgreSQL) ✔, konfigurasi via `.env` ✔.
 
 ## 3. Arsitektur
 

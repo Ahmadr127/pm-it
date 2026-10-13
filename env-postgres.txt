@@ -1,4 +1,4 @@
-# Konfigurasi lokal XAMPP (dibuat otomatis). Jangan bagikan file ini.
+# Konfigurasi lokal PostgreSQL (dibuat otomatis oleh 1-SETUP.bat). Jangan bagikan file ini.
 NODE_ENV=production
 PORT=3000
 APP_NAME=PM-IT Asset Monitoring
@@ -6,16 +6,17 @@ COMPANY_NAME=PT Contoh Perusahaan
 TZ=Asia/Jakarta
 APP_URL=http://localhost:3000
 
-# MySQL bawaan XAMPP: user root tanpa password (default XAMPP).
-# Bila root XAMPP Anda memakai password, isi di antara tanda kutip.
+# PostgreSQL lokal: pakai user bawaan "postgres" (dibuat saat instalasi PostgreSQL).
+# DB_PASSWORD diisi oleh 1-SETUP.bat dengan password instalasi Anda. Bungkus dengan tanda kutip bila diganti manual dan mengandung #, spasi, atau kutip.
+DB_CLIENT=pgsql
 DB_HOST=127.0.0.1
-DB_PORT=3306
+DB_PORT=5432
 DB_NAME=pm_asset
-DB_USER=root
+DB_USER=postgres
 DB_PASSWORD=""
 DB_CONNECTION_LIMIT=10
 
-SESSION_SECRET=f57800fcaddc32e0205ef57f3907d03e7a0f0a5d15424d562727e58528e23d4a5c2e78cf84ef83940f2efddd58029b9b
+SESSION_SECRET=ganti_dengan_hasil_node_crypto_randomBytes_48_hex
 COOKIE_SECURE=false
 SESSION_IDLE_MINUTES=60
 TRUST_PROXY=0
@@ -30,6 +31,6 @@ MAX_IMAGE_MB=5
 MAX_PDF_MB=10
 
 BACKUP_DIR=storage/backups
-MYSQLDUMP_PATH=C:\xampp\mysql\bin\mysqldump.exe
-MYSQL_PATH=C:\xampp\mysql\bin\mysql.exe
+PGDUMP_PATH=pg_dump
+PSQL_PATH=psql
 BACKUP_RETENTION_DAYS=30

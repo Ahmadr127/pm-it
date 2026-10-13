@@ -8,13 +8,13 @@ rem Sudah berjalan? (port 3000 dipakai) -> selesai
 netstat -ano | findstr /R /C:":3000 .*LISTENING" >nul 2>nul
 if not errorlevel 1 exit /b 0
 
-rem Nyalakan MySQL XAMPP bila belum berjalan
-set "XAMPP=%~dp0..\..\.."
-if not exist "%XAMPP%\mysql\bin\mysqld.exe" set "XAMPP=C:\xampp"
-tasklist /FI "IMAGENAME eq mysqld.exe" 2>nul | find /I "mysqld.exe" >nul
+rem Pastikan PostgreSQL berjalan (port 5432); coba nyalakan service bila belum
+netstat -ano | findstr /R /C:":5432 .*LISTENING" >nul 2>nul
 if errorlevel 1 (
-  echo [%date% %time%] Menyalakan MySQL XAMPP >> "storage\logs\server.log"
-  start "" /B "%XAMPP%\mysql\bin\mysqld.exe" --defaults-file="%XAMPP%\mysql\bin\my.ini" --standalone
+  for %%S in (postgresql-x64-18 postgresql-x64-17 postgresql-x64-16 postgresql-x64-15 postgresql-x64-14 postgresql) do (
+    sc query "%%S" >nul 2>&1
+    if not errorlevel 1 net start "%%S" >nul 2>&1
+  )
 )
 
 rem Pembaruan otomatis: server keluar dengan kode 3 saat file aplikasi berubah, lalu dinyalakan ulang di sini.

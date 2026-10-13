@@ -1,6 +1,6 @@
 -- =====================================================================
 -- PM-IT Asset Monitoring — Skema inti
--- Kompatibel: MySQL 8.0+ / MariaDB 10.4+ (termasuk XAMPP)
+-- Kompatibel: MySQL 8.0+ / MariaDB 10.4+ (instalasi lama)
 -- Aturan: NULL = tidak berlaku / tidak diperiksa / tidak tersedia.
 --         Tidak pernah memakai 0 sebagai pengganti data yang tidak ada.
 -- =====================================================================
