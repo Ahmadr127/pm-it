@@ -86,15 +86,14 @@ echo [2/4] Memeriksa koneksi ke PostgreSQL (database "%DBNAME%", user "%DBUSER%"
 call node -e "require('./src/config/db').one('SELECT 1 n').then(()=>console.log('[OK] Terkoneksi dengan password di .env.')).catch(()=>process.exit(1))"
 if not errorlevel 1 goto :db_ok
 echo.
-echo Koneksi gagal - kemungkinan folder ini dicopy dari device lain
+echo Koneksi gagal - kemungkinan password di .env kosong/salah
 echo (password postgres tiap device berbeda), atau database belum dibuat.
 echo Masukkan password user "%DBUSER%" di DEVICE INI (dibuat saat instalasi PostgreSQL).
+echo Kosongkan (langsung Enter) bila PostgreSQL device ini tanpa password.
+echo Lupa password? Jalankan psql sebagai admin lalu: ALTER USER "%DBUSER%" WITH PASSWORD 'password-baru';
 set "PGPASS="
 set /p "PGPASS=Password %DBUSER%: "
-if "%PGPASS%"=="" (
-  echo [GAGAL] Password tidak boleh kosong. Ulangi file ini dan masukkan password PostgreSQL device ini.
-  pause & exit /b 1
-)
+if "%PGPASS%"=="" echo (Lanjut tanpa password...)
 rem Simpan password ke .env (DB_PASSWORD) dengan aman via node (melewati env agar karakter khusus tidak rusak;
 rem bungkus kutip tunggal agar ", \, #, spasi, %, !, $ lolos parse dotenv apa adanya)
 set "PGPASS_ENV=%PGPASS%"

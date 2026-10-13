@@ -37,6 +37,18 @@ if not exist "node_modules" (
   pause & exit /b 1
 )
 
+rem Uji koneksi database dulu agar penyebab gagal langsung jelas
+rem (mis. DB_PASSWORD kosong/salah), bukan error samar saat aplikasi jalan.
+call node -e "require('./src/config/db').one('SELECT 1 n').then(()=>console.log('[OK] Terkoneksi ke database.')).catch(e=>{console.error('[GAGAL] '+e.message);process.exit(1)})" 2>nul
+if errorlevel 1 (
+  echo.
+  echo [GAGAL] Aplikasi tidak bisa terhubung ke PostgreSQL.
+  echo Penyebab umum: DB_PASSWORD di .env kosong/salah, atau database belum dibuat.
+  echo Solusi: jalankan 1-SETUP.bat dan masukkan password postgres device ini.
+  pause & exit /b 1
+)
+echo.
+
 echo ============================================================
 echo  PM-IT Asset Monitoring berjalan di http://localhost:3000
 echo  Mode pembaruan otomatis AKTIF:

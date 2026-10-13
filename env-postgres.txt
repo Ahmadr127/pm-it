@@ -8,6 +8,7 @@ APP_URL=http://localhost:3000
 
 # PostgreSQL lokal: pakai user bawaan "postgres" (dibuat saat instalasi PostgreSQL).
 # DB_PASSWORD diisi oleh 1-SETUP.bat dengan password instalasi Anda (dibungkus kutip tunggal agar karakter khusus aman).
+# Boleh kosong ('') bila PostgreSQL device ini memang tanpa password (trust auth).
 # Bila diganti manual: pakai kutip tunggal, contoh DB_PASSWORD='P@ss#2026' — tanpa kutip, teks setelah # dianggap komentar.
 DB_CLIENT=pgsql
 DB_HOST=127.0.0.1
