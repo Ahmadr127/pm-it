@@ -79,6 +79,8 @@ for /f "tokens=2 delims==" %%a in ('findstr /B "DB_NAME=" ".env"') do set "DBNAM
 for /f "tokens=2 delims==" %%a in ('findstr /B "DB_USER=" ".env"') do set "DBUSER=%%a"
 set "DBNAME=%DBNAME:"=%"
 set "DBUSER=%DBUSER:"=%"
+set "DBNAME=%DBNAME:'=%"
+set "DBUSER=%DBUSER:'=%"
 
 echo [2/4] Memeriksa koneksi ke PostgreSQL (database "%DBNAME%", user "%DBUSER%")...
 call node -e "require('./src/config/db').one('SELECT 1 n').then(()=>console.log('[OK] Terkoneksi dengan password di .env.')).catch(()=>process.exit(1))"
@@ -93,9 +95,10 @@ if "%PGPASS%"=="" (
   echo [GAGAL] Password tidak boleh kosong. Ulangi file ini dan masukkan password PostgreSQL device ini.
   pause & exit /b 1
 )
-rem Simpan password ke .env (DB_PASSWORD) dengan aman via node (melewati env agar karakter khusus tidak rusak)
+rem Simpan password ke .env (DB_PASSWORD) dengan aman via node (melewati env agar karakter khusus tidak rusak;
+rem bungkus kutip tunggal agar ", \, #, spasi, %, !, $ lolos parse dotenv apa adanya)
 set "PGPASS_ENV=%PGPASS%"
-node -e "const fs=require('fs');let p=process.env.PGPASS_ENV||'';p=p.replace(/\\/g,'\\\\').replace(/\"/g,'\\\"');let t=fs.readFileSync('.env','utf8');t=t.replace(/^DB_PASSWORD=.*$/m,'DB_PASSWORD=\"'+p+'\"');fs.writeFileSync('.env',t);console.log('Password tersimpan di .env');"
+node -e "const fs=require('fs');const SQ=String.fromCharCode(39);let p=process.env.PGPASS_ENV||'';let t=fs.readFileSync('.env','utf8');let line;if(p.indexOf(SQ)<0){line='DB_PASSWORD='+SQ+p+SQ;}else if(p.indexOf(String.fromCharCode(34))<0&&p.indexOf(String.fromCharCode(92))<0){line='DB_PASSWORD=\"'+p+'\"';}else{console.error('[GAGAL] Password memakai kombinasi kutip yang tak didukung; ganti password postgres dahulu.');process.exit(1);}t=t.replace(/^DB_PASSWORD=.*$/m,()=>line);fs.writeFileSync('.env',t);console.log('Password tersimpan di .env');"
 if errorlevel 1 ( echo [GAGAL] Gagal menyimpan password ke .env. & pause & exit /b 1 )
 set "PGPASSWORD=%PGPASS%"
 set "PGPASS="
